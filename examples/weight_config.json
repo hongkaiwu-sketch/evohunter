@@ -1,0 +1,8 @@
+{
+  "generation": 0,
+  "skill_weight": 0.4,
+  "experience_weight": 0.2,
+  "salary_weight": 0.15,
+  "location_weight": 0.15,
+  "seniority_weight": 0.1
+}

@@ -1,0 +1,10 @@
+{
+  "job_id": "j_001",
+  "job_title": "ai_agent_engineer",
+  "required_skills": ["python", "llm", "playwright"],
+  "preferred_skills": ["scrapy", "postgresql"],
+  "min_years_of_experience": 3,
+  "salary_range": "25k-40k",
+  "location": "shanghai",
+  "seniority_level": "mid"
+}

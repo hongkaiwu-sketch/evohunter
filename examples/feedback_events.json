@@ -1,0 +1,14 @@
+[
+  {
+    "candidate_id": "c_001",
+    "job_id": "j_001",
+    "event_type": "reply_positive",
+    "event_time": "2026-06-19T17:30:00+08:00"
+  },
+  {
+    "candidate_id": "c_001",
+    "job_id": "j_001",
+    "event_type": "interview_passed",
+    "event_time": "2026-06-20T11:00:00+08:00"
+  }
+]
