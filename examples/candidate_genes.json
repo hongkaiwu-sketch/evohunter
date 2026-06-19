@@ -1,0 +1,22 @@
+[
+  {
+    "candidate_id": "c_001",
+    "skill_vector": ["python", "llm", "playwright", "scrapy"],
+    "years_of_experience": 4,
+    "salary_expectation": "30k-35k",
+    "location_preference": "shanghai",
+    "recent_projects": ["agent_workflow", "crawler_pipeline"],
+    "availability": "open",
+    "seniority_level": "mid"
+  },
+  {
+    "candidate_id": "c_002",
+    "skill_vector": ["python", "data_analysis"],
+    "years_of_experience": 2,
+    "salary_expectation": "45k-55k",
+    "location_preference": "beijing",
+    "recent_projects": ["report_automation"],
+    "availability": "open",
+    "seniority_level": "junior"
+  }
+]

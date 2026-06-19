@@ -1,0 +1,28 @@
+[
+  {
+    "candidate_id": "c_001",
+    "job_id": "j_001",
+    "match_score": 0.96,
+    "score_detail": {
+      "skill_score": 0.9,
+      "experience_score": 1.0,
+      "salary_score": 1.0,
+      "location_score": 1.0,
+      "seniority_score": 1.0
+    },
+    "recommendation_reason": "技能匹配度高，经验匹配度高，薪资匹配度高，地点匹配度高，职级匹配度高。"
+  },
+  {
+    "candidate_id": "c_002",
+    "job_id": "j_001",
+    "match_score": 0.31,
+    "score_detail": {
+      "skill_score": 0.2667,
+      "experience_score": 0.6667,
+      "salary_score": 0.0,
+      "location_score": 0.0,
+      "seniority_score": 0.7
+    },
+    "recommendation_reason": "技能存在明显差距，经验部分匹配，薪资存在明显差距，地点存在明显差距，职级部分匹配。"
+  }
+]
