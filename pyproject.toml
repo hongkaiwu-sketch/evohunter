@@ -3,7 +3,7 @@ name = "evohunter"
 version = "0.1.0"
 description = "基于 EvoMap GEP 协议的自进化猎头 Agent 右脑核心"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["openai>=1"]
 
 [project.optional-dependencies]
 test = ["pytest>=8"]

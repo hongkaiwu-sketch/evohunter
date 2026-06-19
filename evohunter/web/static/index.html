@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EvoHunter Workbench</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">EvoMap GEP Recruiting Agent</p>
+        <h1>EvoHunter Workbench</h1>
+      </div>
+      <div class="status-group" aria-live="polite">
+        <span class="status-dot" id="api-key-dot" aria-hidden="true"></span>
+        <span id="api-key-status">Checking local API key</span>
+      </div>
+    </header>
+
+    <main class="app-shell" id="main-content">
+      <aside class="workflow-rail" aria-label="Workflow steps">
+        <ol>
+          <li class="active" data-step="job" aria-current="step"><span>1</span><strong>JD</strong><small>Parse role</small></li>
+          <li data-step="source"><span>2</span><strong>Source</strong><small>Clean text</small></li>
+          <li data-step="candidates"><span>3</span><strong>Genes</strong><small>Parse candidates</small></li>
+          <li data-step="score"><span>4</span><strong>Rank</strong><small>Score fit</small></li>
+          <li data-step="evolve"><span>5</span><strong>Evolve</strong><small>Update weights</small></li>
+        </ol>
+      </aside>
+
+      <section class="workspace" aria-label="Inputs and parsing">
+        <section class="tool-panel" aria-labelledby="jd-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="jd-title">JD parser</h2>
+              <p>Convert role text into a validated job gene.</p>
+            </div>
+            <button class="primary-button" id="parse-job-button" type="button">Parse JD</button>
+          </div>
+          <label for="job-text">JD text</label>
+          <textarea id="job-text" spellcheck="false">AI Agent Engineer, Shanghai, 3+ years, Python, LLM, Playwright, salary 25k-40k, mid level.</textarea>
+          <div class="message" id="job-message" role="status"></div>
+          <pre class="json-preview" id="job-output" tabindex="0">{}</pre>
+        </section>
+
+        <section class="tool-panel" aria-labelledby="candidate-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="candidate-title">Candidate source</h2>
+              <p>Clean a public URL or local text/HTML path, then parse candidate genes.</p>
+            </div>
+            <div class="button-row">
+              <button class="secondary-button" id="scrape-button" type="button">Scrape</button>
+              <button class="primary-button" id="parse-candidates-button" type="button">Parse candidates</button>
+            </div>
+          </div>
+          <label for="source-input">Source URL or local path</label>
+          <input id="source-input" type="text" autocomplete="off">
+          <label for="candidate-text">Candidate text</label>
+          <textarea id="candidate-text" spellcheck="false">Alice Zhang has 4 years of Python and LLM experience. Recent work includes agent workflow and crawler pipeline. Shanghai preferred, salary 30k-35k, open to opportunities, mid level.</textarea>
+          <div class="message" id="candidate-message" role="status"></div>
+          <pre class="json-preview" id="candidate-output" tabindex="0">[]</pre>
+        </section>
+      </section>
+
+      <aside class="inspector" aria-label="Results inspector">
+        <section class="tool-panel" aria-labelledby="rank-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="rank-title">Match ranking</h2>
+              <p>Score candidates with the current GEP weights.</p>
+            </div>
+            <button class="primary-button" id="score-button" type="button" disabled>Score</button>
+          </div>
+          <label for="weights-input">Weight config JSON</label>
+          <textarea class="compact" id="weights-input" spellcheck="false">{}</textarea>
+          <div class="message" id="score-message" role="status"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Score</th>
+                  <th>Detail</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="results-body">
+                <tr><td colspan="4">Parse a JD and candidates to enable scoring.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="tool-panel" aria-labelledby="evolve-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="evolve-title">Feedback evolution</h2>
+              <p>Update weights from reply or interview feedback.</p>
+            </div>
+            <button class="secondary-button" id="evolve-button" type="button" disabled>Evolve</button>
+          </div>
+          <label for="feedback-input">Feedback events JSON</label>
+          <textarea class="compact" id="feedback-input" spellcheck="false">[]</textarea>
+          <div class="message" id="evolve-message" role="status"></div>
+          <pre class="json-preview" id="evolve-output" tabindex="0">{}</pre>
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>
