@@ -1,0 +1,199 @@
+<!-- templates/dashboard.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统监控看板</title>
+    <!-- 引入 Bootstrap CSS 用于快速美化布局 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入 Chart.js 用于绘制图表 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { padding-top: 2rem; background-color: #f8f9fa; }
+        .card { margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        h1 { color: #343a40; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">📊 系统监控看板</h1>
+
+        <div class="row">
+            <!-- 左侧：概览信息卡片 -->
+            <div class="col-md-4">
+                <div class="card text-white bg-primary mb-3">
+                    <div class="card-header">当前进化代数</div>
+                    <div class="card-body">
+                        <h2 class="card-title display-4" id="current-generation">--</h2>
+                    </div>
+                </div>
+                <div class="card text-white bg-success mb-3">
+                    <div class="card-header">当前匹配成功率</div>
+                    <div class="card-body">
+                        <h2 class="card-title display-4" id="current-success-rate">--%</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：趋势图 -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">匹配成功率趋势</div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="successRateChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下方：候选人列表 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">正在处理的候选人列表</div>
+                    <div class="card-body">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">姓名</th>
+                                    <th scope="col">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="candidates-table-body">
+                                <!-- 数据将通过 JavaScript 动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- JavaScript 逻辑 ---
+
+        // 全局变量，用于存储图表实例和数据
+        let successRateChart;
+        const chartData = {
+            labels: [],
+            data: []
+        };
+
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('successRateChart').getContext('2d');
+            successRateChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: '匹配成功率 (%)',
+                        data: chartData.data,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3 // 使线条平滑
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '成功率 (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '进化代数'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新概览数据和图表
+        async function updateOverview() {
+            try {
+                // 请确保这里的 URL 与你的后端 API 地址一致
+                const response = await fetch('/api/dashboard/overview');
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const data = await response.json();
+
+                // 更新卡片上的数字
+                document.getElementById('current-generation').innerText = data.current_generation;
+                document.getElementById('current-success-rate').innerText = `${data.current_success_rate}%`;
+
+                // 更新图表数据
+                chartData.labels = data.trend_data.map(item => item.generation);
+                chartData.data = data.trend_data.map(item => item.success_rate);
+
+                // 重新渲染图表
+                successRateChart.update();
+
+            } catch (error) {
+                console.error('Failed to fetch overview data:', error);
+                // 可以在页面上显示错误信息
+            }
+        }
+
+        // 更新候选人列表
+        async function updateCandidates() {
+            try {
+                // 请确保这里的 URL 与你的后端 API 地址一致
+                const response = await fetch('/api/dashboard/candidates');
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const candidates = await response.json();
+                const tbody = document.getElementById('candidates-table-body');
+                tbody.innerHTML = ''; // 清空现有内容
+
+                if (candidates.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center">暂无正在处理的候选人。</td></tr>';
+                    return;
+                }
+
+                candidates.forEach(candidate => {
+                    const row = `
+                        <tr>
+                            <td>${candidate.id}</td>
+                            <td>${candidate.name}</td>
+                            <td><span class="badge bg-warning text-dark">${candidate.status}</span></td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', row);
+                });
+
+            } catch (error) {
+                console.error('Failed to fetch candidate data:', error);
+            }
+        }
+
+        // 页面加载完成后执行
+        window.onload = () => {
+            initChart();
+            updateOverview();
+            updateCandidates();
+
+            // 设置定时器，每 5 秒自动刷新一次数据
+            setInterval(() => {
+                updateOverview();
+                updateCandidates();
+            }, 5000);
+        };
+    </script>
+</body>
+</html>
