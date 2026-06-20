@@ -47,6 +47,25 @@ def test_handle_parse_job_uses_llm_parser(monkeypatch):
     assert output == {"job_gene": {"job_id": "j_001", "job_title": "ai_agent_engineer"}}
 
 
+def test_handle_parse_job_can_return_parser_metadata(monkeypatch):
+    monkeypatch.setattr(
+        api,
+        "parse_job_text_with_metadata",
+        lambda text: {
+            "job_gene": {"job_id": "j_001", "job_title": text},
+            "parser_metadata": {"confidence_score": 0.82},
+        },
+    )
+
+    output = handle_api_request(
+        "/api/parse-job",
+        {"text": "ai_agent_engineer", "include_parser_metadata": True},
+    )
+
+    assert output["job_gene"]["job_id"] == "j_001"
+    assert output["parser_metadata"]["confidence_score"] == 0.82
+
+
 def test_handle_score_returns_ranked_match_results():
     output = handle_api_request(
         "/api/score",
@@ -86,6 +105,35 @@ def test_workbench_overview_updates_after_scoring(tmp_path):
     assert overview["last_step"] == "score"
 
 
+def test_workbench_history_returns_score_trend_and_generations(tmp_path):
+    db_path = tmp_path / "workbench.db"
+    handle_api_request(
+        "/api/score",
+        {
+            "db_path": str(db_path),
+            "job_gene": make_job_gene(),
+            "candidate_genes": [make_candidate_gene("c_001", ["python", "llm"], 4)],
+            "weight_config": {"generation": 2},
+        },
+    )
+    handle_api_request(
+        "/api/evolve",
+        {
+            "db_path": str(db_path),
+            "weight_config": {"generation": 2},
+            "feedback_events": [
+                {"candidate_id": "c_001", "job_id": "j_001", "event_type": "reply_positive"}
+            ],
+        },
+    )
+
+    history = handle_api_request("/api/history", {"db_path": str(db_path)})
+
+    assert history["score_trend"][0]["candidate_id"] == "c_001"
+    assert history["candidate_history"]["c_001"][0]["match_score"] > 0
+    assert [item["generation"] for item in history["generation_comparison"]] == [2, 3]
+
+
 def test_web_api_can_use_optional_db_path(tmp_path):
     db_path = tmp_path / "api.db"
 
@@ -102,6 +150,22 @@ def test_web_api_can_use_optional_db_path(tmp_path):
     assert output["match_results"][0]["candidate_id"] == "c_001"
     history = handle_api_request("/api/overview", {"db_path": str(db_path)})
     assert history["candidate_count"] == 1
+
+
+def test_handle_evolve_returns_weight_config_and_evolution_summary():
+    output = handle_api_request(
+        "/api/evolve",
+        {
+            "weight_config": {},
+            "feedback_events": [
+                {"candidate_id": "c_001", "job_id": "j_001", "event_type": "salary_mismatch"}
+            ],
+        },
+    )
+
+    assert output["weight_config"]["generation"] == 1
+    assert output["evolution_summary"]["event_counts"] == {"salary_mismatch": 1}
+    assert output["evolution_summary"]["convergence_status"] == "adjusting"
 
 
 def test_handle_draft_outreach_uses_outreach_module(monkeypatch):

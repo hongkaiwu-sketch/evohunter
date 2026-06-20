@@ -137,6 +137,7 @@
           <label for="feedback-input" data-i18n="labels.feedback_events">Feedback events JSON</label>
           <textarea class="compact" id="feedback-input" spellcheck="false">[]</textarea>
           <div class="message" id="evolve-message" role="status"></div>
+          <div class="summary-grid" id="evolution-summary" aria-live="polite"></div>
           <pre class="json-preview" id="evolve-output" tabindex="0">{}</pre>
         </section>
 
@@ -150,6 +151,29 @@
           </div>
           <div class="message" id="outreach-message" role="status"></div>
           <pre class="json-preview" id="outreach-output" tabindex="0">{}</pre>
+        </section>
+
+        <section class="tool-panel" aria-labelledby="history-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="history-title" data-i18n="panels.history_title">History analysis</h2>
+              <p data-i18n="panels.history_help">Review score trend, candidate history, and generation changes.</p>
+            </div>
+          </div>
+          <div class="history-stack">
+            <section aria-labelledby="history-trend-title">
+              <h3 id="history-trend-title" data-i18n="history.score_trend">Score trend</h3>
+              <div class="history-list" id="history-trend"></div>
+            </section>
+            <section aria-labelledby="history-candidates-title">
+              <h3 id="history-candidates-title" data-i18n="history.candidates">Candidate history</h3>
+              <div class="history-list" id="history-candidates"></div>
+            </section>
+            <section aria-labelledby="history-generations-title">
+              <h3 id="history-generations-title" data-i18n="history.generations">Generation comparison</h3>
+              <div class="history-list" id="history-generations"></div>
+            </section>
+          </div>
         </section>
       </aside>
     </main>

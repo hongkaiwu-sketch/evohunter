@@ -111,6 +111,13 @@ h2 {
   line-height: 1.25;
 }
 
+h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
 .status-group {
   display: flex;
   align-items: center;
@@ -459,6 +466,93 @@ td:nth-child(2) {
   font-variant-numeric: tabular-nums;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.summary-grid:empty {
+  display: none;
+}
+
+.summary-grid div,
+.compact-history-row,
+.history-row {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: oklch(0.985 0.002 70);
+  padding: var(--space-2);
+}
+
+.summary-grid span,
+.compact-history-row span,
+.history-row span:first-child {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.summary-grid strong,
+.compact-history-row strong,
+.history-row strong {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.history-list {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 0.8fr) minmax(6rem, 1fr) minmax(7rem, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.history-row strong {
+  margin-top: 0;
+  text-align: right;
+}
+
+.history-bar {
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-panel);
+}
+
+.history-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+}
+
+.compact-history-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.compact-history-row strong {
+  margin-top: 0;
+  text-align: right;
+}
+
 tr:last-child td {
   border-bottom: 0;
 }
@@ -517,6 +611,15 @@ tr:last-child td {
   .workflow-rail,
   .tool-panel {
     box-shadow: none;
+  }
+
+  .summary-grid,
+  .history-row {
+    grid-template-columns: 1fr;
+  }
+
+  .history-row strong {
+    text-align: left;
   }
 
   .button-row,

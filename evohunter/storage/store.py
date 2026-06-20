@@ -184,6 +184,56 @@ def load_overview(db_path: str) -> dict[str, Any]:
     }
 
 
+def load_workbench_history(db_path: str) -> dict[str, Any]:
+    initialize_database(db_path)
+    with _connect(db_path) as connection:
+        match_rows = connection.execute(
+            """
+            select id, payload, created_at
+            from match_results
+            order by id asc
+            limit 50
+            """
+        ).fetchall()
+        weight_rows = connection.execute(
+            """
+            select payload, created_at
+            from weight_configs
+            order by id asc
+            limit 50
+            """
+        ).fetchall()
+
+    score_trend = []
+    candidate_history: dict[str, list[dict[str, Any]]] = {}
+    for row in match_rows:
+        payload = _load(row["payload"])
+        item = {
+            "sequence": row["id"],
+            "created_at": row["created_at"],
+            "job_id": payload["job_id"],
+            "candidate_id": payload["candidate_id"],
+            "match_score": payload["match_score"],
+            "score_detail": payload.get("score_detail", {}),
+            "recommendation_reason": payload.get("recommendation_reason", ""),
+            "confidence_score": payload.get("confidence_score", 1.0),
+            "risk_flags": payload.get("risk_flags", []),
+        }
+        score_trend.append(item)
+        candidate_history.setdefault(item["candidate_id"], []).append(item)
+
+    generation_comparison = []
+    for row in weight_rows:
+        payload = _load(row["payload"])
+        generation_comparison.append({"created_at": row["created_at"], **payload})
+
+    return {
+        "score_trend": score_trend,
+        "candidate_history": candidate_history,
+        "generation_comparison": generation_comparison,
+    }
+
+
 def _connect(db_path: str) -> sqlite3.Connection:
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -39,11 +39,15 @@ On tablet and mobile, regions stack into a single column with the workflow rail 
 
 ## Components
 
-Primary controls are solid amber buttons with white text. Secondary controls use neutral outlines. Forms always use visible labels and inline help. Downstream actions stay disabled until the required parsed data exists. Results use tables for comparison, score chips for dimension detail, and code blocks for JSON inspection. Cards are only used for distinct tool panels and never nested.
+Primary controls are solid amber buttons with white text. Secondary controls use neutral outlines. Forms always use visible labels and inline help. Downstream actions stay disabled until the required parsed data exists. Results use tables for comparison, score chips for dimension detail, and code blocks for JSON inspection. Evolution summary uses compact metric cells. History analysis uses native compact lists and score bars without external chart dependencies. Cards are only used for distinct tool panels and never nested.
 
 ## State Model
 
 The workflow rail uses active, completed, and error states. A successful JD parse completes `JD` and activates `Genes`; candidate parsing completes `Genes` and activates `Rank`; scoring completes `Rank` and activates `Evolve`; feedback evolution completes `Evolve`. Status text must explain the current action or error without relying only on color.
+
+## History Analysis
+
+The workbench history panel belongs in the results inspector. It shows score trend, candidate history, and generation comparison as dense operational data. Trend bars stay small and readable, and generation comparison uses tabular numeric weight values.
 
 ## Motion
 

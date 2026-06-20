@@ -34,7 +34,9 @@
     "evolve_title": "Feedback evolution",
     "evolve_help": "Update weights from reply or interview feedback.",
     "outreach_title": "Outreach draft",
-    "outreach_help": "Generate a reviewed message draft for the top ranked candidate."
+    "outreach_help": "Generate a reviewed message draft for the top ranked candidate.",
+    "history_title": "History analysis",
+    "history_help": "Review score trend, candidate history, and generation changes."
   },
   "labels": {
     "jd_text": "JD text",
@@ -60,6 +62,14 @@
     "detail": "Detail",
     "reason": "Reason"
   },
+  "history": {
+    "score_trend": "Score trend",
+    "candidates": "Candidate history",
+    "generations": "Generation comparison",
+    "total_events": "Events",
+    "change_magnitude": "Change",
+    "convergence": "Status"
+  },
   "messages": {
     "checking_api_key": "Checking local API key",
     "api_key_loaded": "Local API key loaded",
@@ -78,7 +88,8 @@
     "results_scored": "{count} results scored",
     "weights_evolved": "Weights evolved",
     "outreach_generated": "Outreach draft generated",
-    "score_empty": "Parse a JD and candidates to enable scoring."
+    "score_empty": "Parse a JD and candidates to enable scoring.",
+    "history_empty": "No history yet"
   },
   "errors": {
     "invalid_json": "Invalid {label} JSON"

@@ -64,6 +64,23 @@ def test_workbench_has_overview_and_outreach_controls():
     assert "function draftOutreach()" in script
 
 
+def test_workbench_has_history_analysis_controls():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    script = APP_JS.read_text(encoding="utf-8")
+
+    for element_id in (
+        "evolution-summary",
+        "history-trend",
+        "history-candidates",
+        "history-generations",
+    ):
+        assert f'id="{element_id}"' in html
+    assert "function refreshHistory()" in script
+    assert "function renderHistory(" in script
+    assert "/api/history" in script
+    assert "evolution_summary" in script
+
+
 def test_workbench_has_language_selector_and_i18n_markers():
     html = INDEX_HTML.read_text(encoding="utf-8")
 

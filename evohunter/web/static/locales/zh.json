@@ -34,7 +34,9 @@
     "evolve_title": "反馈进化",
     "evolve_help": "根据回复或面试反馈更新权重。",
     "outreach_title": "触达草稿",
-    "outreach_help": "为排名最高的候选人生成待审核的话术草稿。"
+    "outreach_help": "为排名最高的候选人生成待审核的话术草稿。",
+    "history_title": "历史分析",
+    "history_help": "查看评分趋势、候选人历史和代际变化。"
   },
   "labels": {
     "jd_text": "JD 文本",
@@ -60,6 +62,14 @@
     "detail": "详情",
     "reason": "理由"
   },
+  "history": {
+    "score_trend": "评分趋势",
+    "candidates": "候选人历史",
+    "generations": "代际对比",
+    "total_events": "事件数",
+    "change_magnitude": "变化幅度",
+    "convergence": "状态"
+  },
   "messages": {
     "checking_api_key": "正在检查本地 API key",
     "api_key_loaded": "本地 API key 已加载",
@@ -78,7 +88,8 @@
     "results_scored": "已评分 {count} 个结果",
     "weights_evolved": "权重已进化",
     "outreach_generated": "触达草稿已生成",
-    "score_empty": "解析 JD 和候选人后即可评分。"
+    "score_empty": "解析 JD 和候选人后即可评分。",
+    "history_empty": "暂无历史"
   },
   "errors": {
     "invalid_json": "{label} JSON 无效"

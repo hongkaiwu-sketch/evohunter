@@ -4,11 +4,17 @@ from typing import Any
 
 from evohunter.ai import build_evomap_api_key
 from evohunter.core.evaluator import GEPEvaluator
-from evohunter.core.evolution import evolve_weight_config
+from evohunter.core.evolution import evolve_weight_config_with_summary
 from evohunter.data_scraper import scrape_source, scrape_sources
-from evohunter.llm_parser import parse_candidate_texts, parse_job_text
+from evohunter.llm_parser import (
+    parse_candidate_texts,
+    parse_candidate_texts_with_metadata,
+    parse_job_text,
+    parse_job_text_with_metadata,
+)
 from evohunter.outreach import draft_outreach
 from evohunter.storage import (
+    load_workbench_history,
     load_overview,
     save_candidate_genes,
     save_feedback_events,
@@ -27,16 +33,22 @@ def handle_api_request(path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return {"has_api_key": _has_api_key()}
     if path == "/api/overview":
         return _overview(payload)
+    if path == "/api/history":
+        return _history(payload)
     if path == "/api/scrape":
         return _scrape(payload)
     if path == "/api/parse-job":
+        if payload.get("include_parser_metadata") is True:
+            return parse_job_text_with_metadata(_required_string(payload, "text"))
         return {"job_gene": parse_job_text(_required_string(payload, "text"))}
     if path == "/api/parse-candidates":
+        if payload.get("include_parser_metadata") is True:
+            return parse_candidate_texts_with_metadata(_required_string(payload, "text"))
         return {"candidate_genes": parse_candidate_texts(_required_string(payload, "text"))}
     if path == "/api/score":
         return {"match_results": _score(payload)}
     if path == "/api/evolve":
-        return {"weight_config": _evolve(payload)}
+        return _evolve(payload)
     if path == "/api/draft-outreach":
         return {"outreach_draft": _draft_outreach(payload)}
     raise ApiError(f"unknown endpoint: {path}")
@@ -52,6 +64,17 @@ def _overview(payload: dict[str, Any]) -> dict[str, Any]:
             "last_step": "none",
         }
     return load_overview(db_path)
+
+
+def _history(payload: dict[str, Any]) -> dict[str, Any]:
+    db_path = _optional_string(payload, "db_path")
+    if not db_path:
+        return {
+            "score_trend": [],
+            "candidate_history": {},
+            "generation_comparison": [],
+        }
+    return load_workbench_history(db_path)
 
 
 def _scrape(payload: dict[str, Any]) -> dict[str, Any]:
@@ -93,11 +116,11 @@ def _evolve(payload: dict[str, Any]) -> dict[str, Any]:
         raise ApiError("weight_config must be a dict")
     if not isinstance(feedback_events, list):
         raise ApiError("feedback_events must be a list")
-    output = evolve_weight_config(weight_config, feedback_events).to_dict()
+    output = evolve_weight_config_with_summary(weight_config, feedback_events)
     db_path = _optional_string(payload, "db_path")
     if db_path:
         save_feedback_events(db_path, feedback_events)
-        save_weight_config(db_path, output, step="evolve")
+        save_weight_config(db_path, output["weight_config"], step="evolve")
     return output
 
 

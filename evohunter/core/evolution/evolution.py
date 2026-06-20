@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from collections import Counter
 from typing import Any
 
 from evohunter.core.protocol import (
@@ -86,9 +87,25 @@ def evolve_weight_config(
     feedback_events: list[dict[str, Any] | FeedbackEvent] | dict[str, Any] | FeedbackEvent,
 ) -> WeightConfig:
     weight_config = validate_weight_config(weight_config)
-    weights = weight_config.weights()
     events = _normalize_feedback_events(feedback_events)
+    return _apply_feedback_deltas(weight_config, events)
 
+
+def evolve_weight_config_with_summary(
+    weight_config: dict[str, Any] | WeightConfig,
+    feedback_events: list[dict[str, Any] | FeedbackEvent] | dict[str, Any] | FeedbackEvent,
+) -> dict[str, Any]:
+    weight_config = validate_weight_config(weight_config)
+    events = _normalize_feedback_events(feedback_events)
+    evolved = _apply_feedback_deltas(weight_config, events)
+    return {
+        "weight_config": evolved.to_dict(),
+        "evolution_summary": _build_evolution_summary(weight_config, evolved, events),
+    }
+
+
+def _apply_feedback_deltas(weight_config: WeightConfig, events: list[FeedbackEvent]) -> WeightConfig:
+    weights = weight_config.weights()
     for event in events:
         for field_name, delta in FEEDBACK_DELTAS[event.event_type].items():
             weights[field_name] += delta
@@ -107,6 +124,36 @@ def _normalize_feedback_events(
 def _build_weight_config(weights: dict[str, float], generation: int) -> WeightConfig:
     bounded_weights = _normalize_with_bounds(weights)
     return WeightConfig.from_dict({"generation": generation, **bounded_weights})
+
+
+def _build_evolution_summary(
+    original: WeightConfig,
+    evolved: WeightConfig,
+    events: list[FeedbackEvent],
+) -> dict[str, Any]:
+    weight_changes = {
+        field_name: round(evolved.weights()[field_name] - original.weights()[field_name], 4)
+        for field_name in WEIGHT_FIELDS
+    }
+    change_magnitude = round(sum(abs(value) for value in weight_changes.values()), 4)
+    return {
+        "generation": evolved.generation,
+        "total_events": len(events),
+        "event_counts": dict(Counter(event.event_type for event in events)),
+        "weight_changes": weight_changes,
+        "change_magnitude": change_magnitude,
+        "convergence_status": _classify_convergence(len(events), change_magnitude),
+    }
+
+
+def _classify_convergence(total_events: int, change_magnitude: float) -> str:
+    if total_events == 0:
+        return "no_feedback"
+    if change_magnitude < 0.01:
+        return "stable"
+    if change_magnitude < 0.03:
+        return "converging"
+    return "adjusting"
 
 
 def _normalize_with_bounds(weights: dict[str, float]) -> dict[str, float]:
