@@ -37,12 +37,14 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
 
 button,
 input,
+select,
 textarea,
 pre {
   border-radius: var(--radius);
@@ -54,6 +56,7 @@ button:focus {
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
 pre:focus-visible,
 .skip-link:focus-visible {
@@ -117,6 +120,30 @@ h2 {
   font-size: 0.875rem;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.language-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.language-control select {
+  min-height: 2.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  padding: 0 var(--space-3);
+}
+
 .status-dot {
   width: 0.625rem;
   height: 0.625rem;
@@ -156,6 +183,41 @@ h2 {
 .workflow-rail {
   padding: var(--space-4);
   align-self: start;
+}
+
+.overview-panel {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.overview-panel h2 {
+  margin-bottom: var(--space-3);
+}
+
+.overview-panel dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.overview-panel div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.overview-panel dt {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+
+.overview-panel dd {
+  margin: 0;
+  color: var(--color-accent);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .workflow-rail ol {
@@ -417,6 +479,16 @@ tr:last-child td {
   .panel-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .header-controls {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .language-control {
+    justify-content: space-between;
   }
 
   .app-shell {

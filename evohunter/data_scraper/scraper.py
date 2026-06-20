@@ -70,6 +70,36 @@ def scrape_source(source: str, timeout: float = 10.0) -> str:
     return clean_scraped_text(source_path.read_text(encoding="utf-8"))
 
 
+def scrape_sources(sources: list[str], timeout: float = 10.0) -> list[dict[str, str]]:
+    results = []
+    for source in sources:
+        if not isinstance(source, str) or not source.strip():
+            results.append(
+                {"source": "", "status": "error", "text": "", "error": "source must be a non-empty string"}
+            )
+            continue
+        normalized_source = source.strip()
+        try:
+            results.append(
+                {
+                    "source": normalized_source,
+                    "status": "success",
+                    "text": scrape_source(normalized_source, timeout=timeout),
+                    "error": "",
+                }
+            )
+        except ScrapeError as exc:
+            results.append(
+                {
+                    "source": normalized_source,
+                    "status": "error",
+                    "text": "",
+                    "error": str(exc),
+                }
+            )
+    return results
+
+
 def clean_scraped_text(raw_text: str) -> str:
     text = _html_to_text(raw_text) if _looks_like_html(raw_text) else raw_text
     text = unescape(text)

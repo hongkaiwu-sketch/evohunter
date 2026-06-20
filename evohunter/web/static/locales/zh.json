@@ -1,0 +1,86 @@
+{
+  "app": {
+    "skip_link": "跳到主要内容",
+    "eyebrow": "EvoMap GEP 猎头 Agent",
+    "title": "EvoHunter 工作台",
+    "language_label": "语言"
+  },
+  "steps": {
+    "job": "JD",
+    "job_detail": "解析职位",
+    "source": "来源",
+    "source_detail": "清洗文本",
+    "candidates": "基因",
+    "candidates_detail": "解析候选人",
+    "score": "排序",
+    "score_detail": "匹配评分",
+    "evolve": "进化",
+    "evolve_detail": "更新权重"
+  },
+  "overview": {
+    "title": "运行概览",
+    "candidates": "候选人",
+    "highest_score": "最高分",
+    "generation": "权重代数",
+    "last_step": "最后步骤"
+  },
+  "panels": {
+    "jd_title": "JD 解析器",
+    "jd_help": "将职位文本转换成已校验的职位基因。",
+    "candidate_title": "候选人来源",
+    "candidate_help": "清洗公开 URL 或本地文本/HTML 路径，再解析候选人基因。",
+    "rank_title": "匹配排序",
+    "rank_help": "使用当前 GEP 权重为候选人评分。",
+    "evolve_title": "反馈进化",
+    "evolve_help": "根据回复或面试反馈更新权重。",
+    "outreach_title": "触达草稿",
+    "outreach_help": "为排名最高的候选人生成待审核的话术草稿。"
+  },
+  "labels": {
+    "jd_text": "JD 文本",
+    "sources": "来源 URL 或本地路径",
+    "candidate_text": "候选人文本",
+    "weight_config": "权重配置 JSON",
+    "feedback_events": "反馈事件 JSON"
+  },
+  "placeholders": {
+    "sources": "每行一个来源"
+  },
+  "buttons": {
+    "parse_job": "解析 JD",
+    "scrape": "清洗",
+    "parse_candidates": "解析候选人",
+    "score": "评分",
+    "evolve": "进化",
+    "draft": "草稿"
+  },
+  "table": {
+    "candidate": "候选人",
+    "score": "分数",
+    "detail": "详情",
+    "reason": "理由"
+  },
+  "messages": {
+    "checking_api_key": "正在检查本地 API key",
+    "api_key_loaded": "本地 API key 已加载",
+    "api_key_missing": "缺少本地 API key",
+    "config_check_failed": "配置检查失败",
+    "working": "处理中",
+    "scraping": "清洗中",
+    "parsing": "解析中",
+    "scoring": "评分中",
+    "evolving": "进化中",
+    "drafting": "生成草稿中",
+    "source_cleaned": "来源已清洗",
+    "sources_cleaned": "已清洗 {success}/{total} 个来源",
+    "jd_parsed": "JD 已解析",
+    "candidate_genes_parsed": "已解析 {count} 个候选人基因",
+    "results_scored": "已评分 {count} 个结果",
+    "weights_evolved": "权重已进化",
+    "outreach_generated": "触达草稿已生成",
+    "score_empty": "解析 JD 和候选人后即可评分。"
+  },
+  "errors": {
+    "invalid_json": "{label} JSON 无效"
+  }
+}

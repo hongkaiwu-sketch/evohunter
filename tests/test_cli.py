@@ -75,6 +75,62 @@ def test_score_command_writes_ranked_match_results(tmp_path):
     assert output[0]["score_detail"]["seniority_score"] == 1.0
 
 
+def test_storage_keeps_cli_file_output_compatible(tmp_path):
+    job_path = tmp_path / "job_gene.json"
+    candidates_path = tmp_path / "candidate_genes.json"
+    weights_path = tmp_path / "weight_config.json"
+    output_path = tmp_path / "match_results.json"
+    db_path = tmp_path / "evohunter.db"
+    write_json(
+        job_path,
+        {
+            "job_id": "j_001",
+            "job_title": "ai_agent_engineer",
+            "required_skills": ["python", "llm", "playwright"],
+            "preferred_skills": ["scrapy"],
+            "min_years_of_experience": 3,
+            "salary_range": "25k-40k",
+            "location": "shanghai",
+            "seniority_level": "mid",
+        },
+    )
+    write_json(
+        candidates_path,
+        [
+            {
+                "candidate_id": "c_001",
+                "skill_vector": ["python", "llm", "playwright"],
+                "years_of_experience": 4,
+                "salary_expectation": "30k-35k",
+                "location_preference": "shanghai",
+                "recent_projects": ["agent_workflow"],
+                "availability": "open",
+                "seniority_level": "mid",
+            }
+        ],
+    )
+    write_json(weights_path, {})
+
+    result = run_cli(
+        "score",
+        "--job",
+        str(job_path),
+        "--candidates",
+        str(candidates_path),
+        "--weights",
+        str(weights_path),
+        "--output",
+        str(output_path),
+        "--db-path",
+        str(db_path),
+    )
+
+    assert result.returncode == 0
+    output = json.loads(output_path.read_text(encoding="utf-8"))
+    assert isinstance(output, list)
+    assert output[0]["candidate_id"] == "c_001"
+
+
 def test_evolve_command_writes_updated_weight_config(tmp_path):
     weights_path = tmp_path / "weight_config.json"
     feedback_path = tmp_path / "feedback_events.json"
@@ -220,6 +276,84 @@ def test_parse_candidates_command_writes_candidate_genes(tmp_path, monkeypatch):
     assert result == 0
     output = json.loads(output_path.read_text(encoding="utf-8"))
     assert output[0]["candidate_id"] == "c_001"
+
+
+def test_cli_draft_outreach_writes_json(tmp_path, monkeypatch):
+    import evohunter.__main__ as cli
+
+    job_path = tmp_path / "job_gene.json"
+    candidate_path = tmp_path / "candidate_gene.json"
+    match_path = tmp_path / "match_result.json"
+    output_path = tmp_path / "outreach_draft.json"
+    write_json(
+        job_path,
+        {
+            "job_id": "j_001",
+            "job_title": "ai_agent_engineer",
+            "required_skills": ["python"],
+            "preferred_skills": [],
+            "min_years_of_experience": 3,
+            "salary_range": "25k-40k",
+            "location": "shanghai",
+            "seniority_level": "mid",
+        },
+    )
+    write_json(
+        candidate_path,
+        {
+            "candidate_id": "c_001",
+            "skill_vector": ["python"],
+            "years_of_experience": 4,
+            "salary_expectation": "30k-35k",
+            "location_preference": "shanghai",
+            "recent_projects": [],
+            "availability": "open",
+            "seniority_level": "mid",
+        },
+    )
+    write_json(
+        match_path,
+        {
+            "candidate_id": "c_001",
+            "job_id": "j_001",
+            "match_score": 0.9,
+            "score_detail": {"skill_score": 1.0},
+            "recommendation_reason": "技能匹配",
+        },
+    )
+
+    def fake_draft_outreach(job_gene, candidate_gene, match_result):
+        assert job_gene["job_id"] == "j_001"
+        assert candidate_gene["candidate_id"] == "c_001"
+        assert match_result["match_score"] == 0.9
+        return {
+            "candidate_id": "c_001",
+            "job_id": "j_001",
+            "subject": "AI Agent Engineer opportunity",
+            "message_body": "你的经验很匹配。",
+            "rationale": "技能匹配。",
+        }
+
+    monkeypatch.setattr(cli, "draft_outreach", fake_draft_outreach)
+
+    result = cli.main(
+        [
+            "draft-outreach",
+            "--job",
+            str(job_path),
+            "--candidate",
+            str(candidate_path),
+            "--match",
+            str(match_path),
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    assert result == 0
+    output = json.loads(output_path.read_text(encoding="utf-8"))
+    assert output["candidate_id"] == "c_001"
+    assert output["message_body"] == "你的经验很匹配。"
 
 
 def test_serve_command_help_lists_web_options():

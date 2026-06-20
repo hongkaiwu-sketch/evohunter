@@ -9,39 +9,69 @@
     <script src="/static/app.js" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <a class="skip-link" href="#main-content" data-i18n="app.skip_link">Skip to main content</a>
     <header class="app-header">
       <div>
-        <p class="eyebrow">EvoMap GEP Recruiting Agent</p>
-        <h1>EvoHunter Workbench</h1>
+        <p class="eyebrow" data-i18n="app.eyebrow">EvoMap GEP Recruiting Agent</p>
+        <h1 data-i18n="app.title">EvoHunter Workbench</h1>
       </div>
-      <div class="status-group" aria-live="polite">
-        <span class="status-dot" id="api-key-dot" aria-hidden="true"></span>
-        <span id="api-key-status">Checking local API key</span>
+      <div class="header-controls">
+        <label class="language-control" for="language-select">
+          <span data-i18n="app.language_label">Language</span>
+          <select id="language-select" aria-label="Language">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
+        <div class="status-group" aria-live="polite">
+          <span class="status-dot" id="api-key-dot" aria-hidden="true"></span>
+          <span id="api-key-status" data-i18n="messages.checking_api_key">Checking local API key</span>
+        </div>
       </div>
     </header>
 
     <main class="app-shell" id="main-content">
       <aside class="workflow-rail" aria-label="Workflow steps">
         <ol>
-          <li class="active" data-step="job" aria-current="step"><span>1</span><strong>JD</strong><small>Parse role</small></li>
-          <li data-step="source"><span>2</span><strong>Source</strong><small>Clean text</small></li>
-          <li data-step="candidates"><span>3</span><strong>Genes</strong><small>Parse candidates</small></li>
-          <li data-step="score"><span>4</span><strong>Rank</strong><small>Score fit</small></li>
-          <li data-step="evolve"><span>5</span><strong>Evolve</strong><small>Update weights</small></li>
+          <li class="active" data-step="job" aria-current="step"><span>1</span><strong data-i18n="steps.job">JD</strong><small data-i18n="steps.job_detail">Parse role</small></li>
+          <li data-step="source"><span>2</span><strong data-i18n="steps.source">Source</strong><small data-i18n="steps.source_detail">Clean text</small></li>
+          <li data-step="candidates"><span>3</span><strong data-i18n="steps.candidates">Genes</strong><small data-i18n="steps.candidates_detail">Parse candidates</small></li>
+          <li data-step="score"><span>4</span><strong data-i18n="steps.score">Rank</strong><small data-i18n="steps.score_detail">Score fit</small></li>
+          <li data-step="evolve"><span>5</span><strong data-i18n="steps.evolve">Evolve</strong><small data-i18n="steps.evolve_detail">Update weights</small></li>
         </ol>
+        <section class="overview-panel" aria-label="Run overview">
+          <h2 data-i18n="overview.title">Run overview</h2>
+          <dl>
+            <div>
+              <dt data-i18n="overview.candidates">Candidates</dt>
+              <dd id="overview-candidate-count">0</dd>
+            </div>
+            <div>
+              <dt data-i18n="overview.highest_score">Highest score</dt>
+              <dd id="overview-highest-score">0.0000</dd>
+            </div>
+            <div>
+              <dt data-i18n="overview.generation">Generation</dt>
+              <dd id="overview-generation">0</dd>
+            </div>
+            <div>
+              <dt data-i18n="overview.last_step">Last step</dt>
+              <dd id="overview-last-step">none</dd>
+            </div>
+          </dl>
+        </section>
       </aside>
 
       <section class="workspace" aria-label="Inputs and parsing">
         <section class="tool-panel" aria-labelledby="jd-title">
           <div class="panel-heading">
             <div>
-              <h2 id="jd-title">JD parser</h2>
-              <p>Convert role text into a validated job gene.</p>
+              <h2 id="jd-title" data-i18n="panels.jd_title">JD parser</h2>
+              <p data-i18n="panels.jd_help">Convert role text into a validated job gene.</p>
             </div>
-            <button class="primary-button" id="parse-job-button" type="button">Parse JD</button>
+            <button class="primary-button" id="parse-job-button" type="button" data-i18n="buttons.parse_job">Parse JD</button>
           </div>
-          <label for="job-text">JD text</label>
+          <label for="job-text" data-i18n="labels.jd_text">JD text</label>
           <textarea id="job-text" spellcheck="false">AI Agent Engineer, Shanghai, 3+ years, Python, LLM, Playwright, salary 25k-40k, mid level.</textarea>
           <div class="message" id="job-message" role="status"></div>
           <pre class="json-preview" id="job-output" tabindex="0">{}</pre>
@@ -50,17 +80,17 @@
         <section class="tool-panel" aria-labelledby="candidate-title">
           <div class="panel-heading">
             <div>
-              <h2 id="candidate-title">Candidate source</h2>
-              <p>Clean a public URL or local text/HTML path, then parse candidate genes.</p>
+              <h2 id="candidate-title" data-i18n="panels.candidate_title">Candidate source</h2>
+              <p data-i18n="panels.candidate_help">Clean public URLs or local text/HTML paths, then parse candidate genes.</p>
             </div>
             <div class="button-row">
-              <button class="secondary-button" id="scrape-button" type="button">Scrape</button>
-              <button class="primary-button" id="parse-candidates-button" type="button">Parse candidates</button>
+              <button class="secondary-button" id="scrape-button" type="button" data-i18n="buttons.scrape">Scrape</button>
+              <button class="primary-button" id="parse-candidates-button" type="button" data-i18n="buttons.parse_candidates">Parse candidates</button>
             </div>
           </div>
-          <label for="source-input">Source URL or local path</label>
-          <input id="source-input" type="text" autocomplete="off">
-          <label for="candidate-text">Candidate text</label>
+          <label for="source-input" data-i18n="labels.sources">Source URLs or local paths</label>
+          <input id="source-input" type="text" autocomplete="off" data-i18n-placeholder="placeholders.sources">
+          <label for="candidate-text" data-i18n="labels.candidate_text">Candidate text</label>
           <textarea id="candidate-text" spellcheck="false">Alice Zhang has 4 years of Python and LLM experience. Recent work includes agent workflow and crawler pipeline. Shanghai preferred, salary 30k-35k, open to opportunities, mid level.</textarea>
           <div class="message" id="candidate-message" role="status"></div>
           <pre class="json-preview" id="candidate-output" tabindex="0">[]</pre>
@@ -71,26 +101,26 @@
         <section class="tool-panel" aria-labelledby="rank-title">
           <div class="panel-heading">
             <div>
-              <h2 id="rank-title">Match ranking</h2>
-              <p>Score candidates with the current GEP weights.</p>
+              <h2 id="rank-title" data-i18n="panels.rank_title">Match ranking</h2>
+              <p data-i18n="panels.rank_help">Score candidates with the current GEP weights.</p>
             </div>
-            <button class="primary-button" id="score-button" type="button" disabled>Score</button>
+            <button class="primary-button" id="score-button" type="button" disabled data-i18n="buttons.score">Score</button>
           </div>
-          <label for="weights-input">Weight config JSON</label>
+          <label for="weights-input" data-i18n="labels.weight_config">Weight config JSON</label>
           <textarea class="compact" id="weights-input" spellcheck="false">{}</textarea>
           <div class="message" id="score-message" role="status"></div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Candidate</th>
-                  <th>Score</th>
-                  <th>Detail</th>
-                  <th>Reason</th>
+                  <th data-i18n="table.candidate">Candidate</th>
+                  <th data-i18n="table.score">Score</th>
+                  <th data-i18n="table.detail">Detail</th>
+                  <th data-i18n="table.reason">Reason</th>
                 </tr>
               </thead>
               <tbody id="results-body">
-                <tr><td colspan="4">Parse a JD and candidates to enable scoring.</td></tr>
+                <tr><td colspan="4" data-i18n="messages.score_empty">Parse a JD and candidates to enable scoring.</td></tr>
               </tbody>
             </table>
           </div>
@@ -99,15 +129,27 @@
         <section class="tool-panel" aria-labelledby="evolve-title">
           <div class="panel-heading">
             <div>
-              <h2 id="evolve-title">Feedback evolution</h2>
-              <p>Update weights from reply or interview feedback.</p>
+              <h2 id="evolve-title" data-i18n="panels.evolve_title">Feedback evolution</h2>
+              <p data-i18n="panels.evolve_help">Update weights from reply or interview feedback.</p>
             </div>
-            <button class="secondary-button" id="evolve-button" type="button" disabled>Evolve</button>
+            <button class="secondary-button" id="evolve-button" type="button" disabled data-i18n="buttons.evolve">Evolve</button>
           </div>
-          <label for="feedback-input">Feedback events JSON</label>
+          <label for="feedback-input" data-i18n="labels.feedback_events">Feedback events JSON</label>
           <textarea class="compact" id="feedback-input" spellcheck="false">[]</textarea>
           <div class="message" id="evolve-message" role="status"></div>
           <pre class="json-preview" id="evolve-output" tabindex="0">{}</pre>
+        </section>
+
+        <section class="tool-panel" aria-labelledby="outreach-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="outreach-title" data-i18n="panels.outreach_title">Outreach draft</h2>
+              <p data-i18n="panels.outreach_help">Generate a reviewed message draft for the top ranked candidate.</p>
+            </div>
+            <button class="secondary-button" id="draft-outreach-button" type="button" disabled data-i18n="buttons.draft">Draft</button>
+          </div>
+          <div class="message" id="outreach-message" role="status"></div>
+          <pre class="json-preview" id="outreach-output" tabindex="0">{}</pre>
         </section>
       </aside>
     </main>
