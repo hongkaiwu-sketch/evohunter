@@ -43,13 +43,24 @@ def handle_api_request(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     if path == "/api/scrape":
         return _scrape(payload)
     if path == "/api/parse-job":
-        if payload.get("include_parser_metadata") is True:
-            return parse_job_text_with_metadata(_required_string(payload, "text"))
-        return {"job_gene": parse_job_text(_required_string(payload, "text"))}
+        result = parse_job_text_with_metadata(_required_string(payload, "text")) if payload.get("include_parser_metadata") is True else {"job_gene": parse_job_text(_required_string(payload, "text"))}
+        db_path = _optional_string(payload, "db_path")
+        if db_path and "job_gene" in result:
+            try:
+                save_job_gene(db_path, {"job_gene": result["job_gene"]})
+            except Exception:
+                pass
+        return result
     if path == "/api/parse-candidates":
-        if payload.get("include_parser_metadata") is True:
-            return parse_candidate_texts_with_metadata(_required_string(payload, "text"))
-        return {"candidate_genes": parse_candidate_texts(_required_string(payload, "text"))}
+        result = parse_candidate_texts_with_metadata(_required_string(payload, "text")) if payload.get("include_parser_metadata") is True else {"candidate_genes": parse_candidate_texts(_required_string(payload, "text"))}
+        db_path = _optional_string(payload, "db_path")
+        if db_path and "candidate_genes" in result:
+            try:
+                for cg in result["candidate_genes"]:
+                    save_candidate_genes(db_path, [{"candidate_gene": cg}])
+            except Exception:
+                pass
+        return result
     if path == "/api/score":
         return {"match_results": _score(payload)}
     if path == "/api/evolve":
@@ -82,6 +93,11 @@ def handle_api_request(path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return _evolution_data(payload)
     if path == "/api/evolution/strategy":
         return _evolution_strategy(payload)
+    # ── Pool search ────────────────────────────────────────────────
+    if path == "/api/pool/search":
+        return _pool_search(payload)
+    if path == "/api/pool/seed":
+        return _pool_seed(payload)
     raise ApiError(f"unknown endpoint: {path}")
 
 
@@ -592,3 +608,88 @@ def _evolution_strategy(payload: dict[str, Any]) -> dict[str, Any]:
     from evohunter.storage import save_evolution_strategy
     save_evolution_strategy(db_path, strategy_data)
     return {"saved": True, "strategy": strategy_data}
+
+
+# ── Pool search handlers ─────────────────────────────────────────────
+
+
+def _pool_search(payload: dict[str, Any]) -> dict[str, Any]:
+    """Search JDs and candidates in the database.
+
+    Query params: skills, location, seniority_level, salary_min, side (jd|candidate|both)
+    """
+    db_path = _optional_string(payload, "db_path")
+    if not db_path:
+        db_path = ".evohunter/workbench.db"
+
+    from evohunter.storage import initialize_database
+    import sqlite3, json
+    from pathlib import Path
+
+    initialize_database(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    skills = [s.strip().lower() for s in payload.get("skills", "").split(",") if s.strip()]
+    location = (payload.get("location", "") or "").strip().lower()
+    seniority = (payload.get("seniority_level", "") or "").strip().lower()
+    side = payload.get("side", "both")
+
+    jd_results: list[dict] = []
+    candidate_results: list[dict] = []
+
+    if side in ("jd", "both"):
+        rows = conn.execute("select payload from job_genes order by updated_at desc").fetchall()
+        for r in rows:
+            jd = json.loads(r["payload"])
+            if _match_filters(jd, skills, location, seniority, "jd"):
+                jd_results.append(jd)
+
+    if side in ("candidate", "both"):
+        rows = conn.execute("select payload from candidate_genes order by updated_at desc").fetchall()
+        for r in rows:
+            c = json.loads(r["payload"])
+            if _match_filters(c, skills, location, seniority, "candidate"):
+                candidate_results.append(c)
+
+    conn.close()
+    return {"jds": jd_results, "candidates": candidate_results}
+
+
+def _match_filters(
+    item: dict,
+    skills: list[str],
+    location: str,
+    seniority: str,
+    side: str,
+) -> bool:
+    """Check if an item matches the search filters."""
+    if skills:
+        if side == "jd":
+            item_skills = [s.lower() for s in item.get("required_skills", []) + item.get("preferred_skills", [])]
+        else:
+            item_skills = [s.lower() for s in item.get("skill_vector", [])]
+        if not any(sk in item_skills for sk in skills):
+            return False
+
+    if location:
+        item_loc = item.get("location", item.get("location_preference", "")).lower()
+        if location not in item_loc:
+            return False
+
+    if seniority:
+        item_sen = item.get("seniority_level", "").lower()
+        if seniority != item_sen:
+            return False
+
+    return True
+
+
+def _pool_seed(payload: dict[str, Any]) -> dict[str, Any]:
+    """Seed the database with demo companies and candidates."""
+    db_path = _optional_string(payload, "db_path")
+    if not db_path:
+        db_path = ".evohunter/workbench.db"
+    from evohunter.storage.seed import seed_demo_data
+    result = seed_demo_data(db_path)
+    return {"seeded": True, **result}
