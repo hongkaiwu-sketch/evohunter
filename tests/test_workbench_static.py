@@ -7,73 +7,57 @@ JS = ROOT / "evohunter" / "web" / "static" / "app.js"
 LOCALES = ROOT / "evohunter" / "web" / "static" / "locales"
 
 
-def test_workbench_has_search_bar():
+def test_has_mode_tabs():
     html = HTML.read_text(encoding="utf-8")
-    assert 'id="search-skills"' in html
-    assert 'id="search-location"' in html
-    assert 'id="search-level"' in html
-    assert 'id="search-btn"' in html
+    assert 'I\'m Hiring' in html
+    assert 'I\'m Looking' in html
+    assert 'class="mode-tab"' in html
 
 
-def test_workbench_has_dual_panel():
+def test_has_search_and_import():
     html = HTML.read_text(encoding="utf-8")
-    assert 'id="jd-list"' in html
-    assert 'id="candidate-list"' in html
+    assert 'id="h-search-skills"' in html
+    assert 'id="l-search-skills"' in html
+    assert 'id="h-import-text"' in html
+    assert 'id="l-import-text"' in html
 
 
-def test_workbench_has_seed_button():
+def test_has_seed_and_detail():
     html = HTML.read_text(encoding="utf-8")
     assert 'id="seed-btn"' in html
+    assert 'id="h-detail"' in html
+    assert 'id="l-detail"' in html
 
 
-def test_workbench_has_match_bar():
-    html = HTML.read_text(encoding="utf-8")
-    assert 'id="match-btn"' in html
-    assert 'id="match-info"' in html
-
-
-def test_workbench_has_results():
-    html = HTML.read_text(encoding="utf-8")
-    assert 'id="results-list"' in html
-    assert 'id="detail-wrap"' in html
-
-
-def test_workbench_script_has_search_and_match():
+def test_script_one_sided_match():
     script = JS.read_text(encoding="utf-8")
-    assert "function search()" in script
-    assert "function matchSelected()" in script
-    assert "function seedDemo()" in script
+    assert "function selectJD(" in script
+    assert "function selectCandidate(" in script
     assert "function importJD()" in script
     assert "function importResume()" in script
-    assert "function selectMatch(" in script
-    assert "function draftOutreach(" in script
-    assert "function generateReport(" in script
+    assert "function seed()" in script
+    assert "function switchMode(" in script
     assert "/api/pool/search" in script
-    assert "/api/pool/seed" in script
+    assert "/api/recruiter/assess" in script
 
 
 def test_no_external_deps():
-    combined = (HTML.read_text() + JS.read_text()).lower()
-    assert "bootstrap" not in combined
-    assert "chart.js" not in combined
-    assert "flask" not in combined
+    c = (HTML.read_text() + JS.read_text()).lower()
+    for w in ("bootstrap", "chart.js", "flask", "react", "vue"):
+        assert w not in c
 
 
-def test_workbench_has_status_bar():
+def test_status_bar_and_nav():
     html = HTML.read_text(encoding="utf-8")
     for eid in ("sb-generation", "sb-jds", "sb-candidates", "api-dot"):
         assert f'id="{eid}"' in html
+    assert 'href="/evolution"' in html
 
 
-def test_workbench_has_evolution_nav():
-    assert 'href="/evolution"' in HTML.read_text()
-
-
-def test_locale_files():
+def test_locales():
     en = json.loads((LOCALES / "en.json").read_text(encoding="utf-8"))
     zh = json.loads((LOCALES / "zh.json").read_text(encoding="utf-8"))
     for p in (en, zh):
         assert p["app"]["title"]
-        assert p["buttons"]["score"]
     assert en["buttons"]["score"] == "Score"
     assert zh["buttons"]["score"] == "评分"

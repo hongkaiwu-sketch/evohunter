@@ -13,94 +13,93 @@
   <a href="/" class="logo">Evo<span>Hunter</span></a>
   <span class="badge" id="gen-badge">Gen 0</span>
   <nav class="topbar-nav">
-    <button class="seed-btn" id="seed-btn" title="Load demo data">Seed Demo</button>
+    <button class="seed-btn" id="seed-btn">Seed Demo</button>
     <a href="/evolution" class="nav-link">Evolution →</a>
   </nav>
 </header>
 
 <main class="workbench">
 
-  <!-- Search -->
-  <section class="search-bar">
-    <input type="text" id="search-skills" placeholder="Skills: python, llm, kubernetes..." autocomplete="off">
-    <input type="text" id="search-location" placeholder="Location: shanghai" autocomplete="off">
-    <select id="search-level">
-      <option value="">Any level</option>
-      <option value="intern">Intern</option>
-      <option value="junior">Junior</option>
-      <option value="mid">Mid</option>
-      <option value="senior">Senior</option>
-      <option value="lead">Lead</option>
-    </select>
-    <button class="search-btn" id="search-btn">Search</button>
-  </section>
+  <!-- Mode Tabs -->
+  <nav class="mode-tabs">
+    <button class="mode-tab active" data-mode="hiring">🏢 I'm Hiring</button>
+    <button class="mode-tab" data-mode="looking">👤 I'm Looking</button>
+  </nav>
 
-  <!-- Two sides -->
-  <section class="dual-panel">
+  <!-- ═══════════ HIRING MODE ═══════════ -->
+  <section class="mode-content" id="mode-hiring">
 
-    <div class="side-panel">
-      <div class="side-hdr">
-        <h2>🏢 Companies <span class="count" id="jd-count">0</span></h2>
-        <div class="side-actions">
-          <button class="side-sel-btn" id="jd-select-all">All</button>
-          <button class="side-sel-btn" id="jd-select-none">None</button>
-          <button class="add-btn" id="add-jd-btn">+ Import JD</button>
-        </div>
-      </div>
-      <div class="add-form" id="jd-form" hidden>
-        <textarea id="jd-input" rows="3" placeholder="Paste a job description..."></textarea>
-        <div class="form-actions">
-          <button class="action-btn primary-action" id="jd-parse-btn">Parse & Add</button>
-          <button class="action-btn" id="jd-cancel-btn">Cancel</button>
-        </div>
-        <div class="form-msg" id="jd-msg"></div>
-      </div>
-      <div class="item-list" id="jd-list"></div>
+    <!-- JD Search -->
+    <div class="search-row">
+      <input type="text" id="h-search-skills" placeholder="Required skills: python, llm, k8s..." autocomplete="off">
+      <input type="text" id="h-search-loc" placeholder="Location: shanghai" autocomplete="off">
+      <select id="h-search-level">
+        <option value="">Any level</option>
+        <option value="junior">Junior</option>
+        <option value="mid">Mid</option>
+        <option value="senior">Senior</option>
+        <option value="lead">Lead</option>
+      </select>
+      <button class="search-btn" id="h-search-btn">Find JDs</button>
     </div>
 
-    <div class="side-panel">
-      <div class="side-hdr">
-        <h2>👤 Candidates <span class="count" id="candidate-count">0</span></h2>
-        <div class="side-actions">
-          <button class="side-sel-btn" id="candidate-select-all">All</button>
-          <button class="side-sel-btn" id="candidate-select-none">None</button>
-          <button class="add-btn" id="add-resume-btn">+ Import CV</button>
-        </div>
-      </div>
-      <div class="add-form" id="resume-form" hidden>
-        <textarea id="resume-input" rows="3" placeholder="Paste a resume..."></textarea>
-        <div class="form-actions">
-          <button class="action-btn primary-action" id="resume-parse-btn">Parse & Add</button>
-          <button class="action-btn" id="resume-cancel-btn">Cancel</button>
-        </div>
-        <div class="form-msg" id="resume-msg"></div>
-      </div>
-      <div class="item-list" id="candidate-list"></div>
+    <!-- JD List -->
+    <div class="section-label">Matching JDs <span class="count" id="h-jd-count">0</span></div>
+    <div class="item-list jd-list" id="h-jd-list">
+      <div class="empty-hint"><p>Search or seed to find JDs, or import one below.</p></div>
     </div>
+
+    <!-- Import JD -->
+    <details class="import-block" id="h-import">
+      <summary>+ Import a new JD not in the database</summary>
+      <textarea id="h-import-text" rows="3" placeholder="Paste a job description...&#10;e.g. AI Agent Engineer, Shanghai, Python/LLM, 25k-40k"></textarea>
+      <button class="action-btn primary-action" id="h-import-btn">Parse & Import</button>
+      <span class="form-msg" id="h-import-msg"></span>
+    </details>
+
+    <!-- Candidates matched to selected JD -->
+    <div class="section-label" id="h-result-label" hidden>Candidates for <strong id="h-selected-title"></strong></div>
+    <div class="cards-list" id="h-results"></div>
+    <div class="detail-wrap" id="h-detail" hidden><div class="detail-content" id="h-detail-content"></div></div>
 
   </section>
 
-  <!-- Match bar -->
-  <section class="match-bar">
-    <span class="match-info" id="match-info">Select companies and candidates to match</span>
-    <button class="run-btn" id="match-btn" disabled>Match Selected</button>
-  </section>
+  <!-- ═══════════ LOOKING MODE ═══════════ -->
+  <section class="mode-content" id="mode-looking" hidden>
 
-  <!-- Results -->
-  <section class="results-area" id="results-area">
-    <div class="results-hdr">
-      <h2>Match Results</h2>
-      <span class="count" id="result-count">0</span>
+    <!-- Candidate Search -->
+    <div class="search-row">
+      <input type="text" id="l-search-skills" placeholder="My skills: python, llm, k8s..." autocomplete="off">
+      <input type="text" id="l-search-loc" placeholder="Preferred location: shanghai" autocomplete="off">
+      <select id="l-search-level">
+        <option value="">Any level</option>
+        <option value="junior">Junior</option>
+        <option value="mid">Mid</option>
+        <option value="senior">Senior</option>
+        <option value="lead">Lead</option>
+      </select>
+      <button class="search-btn" id="l-search-btn">Find Candidates</button>
     </div>
-    <div class="cards-list" id="results-list">
-      <div class="empty-hint">
-        <div class="empty-icon">◈</div>
-        <p id="empty-msg">Click "Seed Demo" to load sample data,<br>then search and match.</p>
-      </div>
+
+    <!-- Candidate List -->
+    <div class="section-label">Matching Candidates <span class="count" id="l-candidate-count">0</span></div>
+    <div class="item-list" id="l-candidate-list">
+      <div class="empty-hint"><p>Search or seed to find candidates, or import one below.</p></div>
     </div>
-    <div class="detail-wrap" id="detail-wrap" hidden>
-      <div class="detail-content" id="detail-content"></div>
-    </div>
+
+    <!-- Import Resume -->
+    <details class="import-block" id="l-import">
+      <summary>+ Import a new resume not in the database</summary>
+      <textarea id="l-import-text" rows="3" placeholder="Paste a resume...&#10;e.g. 5yr Python+LLM, RAG architecture, currently Senior Eng"></textarea>
+      <button class="action-btn primary-action" id="l-import-btn">Parse & Import</button>
+      <span class="form-msg" id="l-import-msg"></span>
+    </details>
+
+    <!-- JDs matched to selected candidate -->
+    <div class="section-label" id="l-result-label" hidden>Matching JDs for <strong id="l-selected-name"></strong></div>
+    <div class="cards-list" id="l-results"></div>
+    <div class="detail-wrap" id="l-detail" hidden><div class="detail-content" id="l-detail-content"></div></div>
+
   </section>
 
   <footer class="status-bar">
