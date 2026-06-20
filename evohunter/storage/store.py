@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from evohunter.core.protocol import (
+    EvolutionEvent,
     FeedbackEvent,
     MatchResult,
     WeightConfig,
     validate_candidate_gene,
+    validate_evolution_event,
     validate_job_gene,
 )
 
@@ -53,6 +55,13 @@ def initialize_database(db_path: str) -> None:
             create table if not exists workflow_events (
               id integer primary key autoincrement,
               step text not null,
+              created_at text not null default current_timestamp
+            );
+            create table if not exists evolution_events (
+              id integer primary key autoincrement,
+              evolution_id text not null,
+              cycle_number integer not null,
+              payload text not null,
               created_at text not null default current_timestamp
             );
             """
@@ -232,6 +241,32 @@ def load_workbench_history(db_path: str) -> dict[str, Any]:
         "candidate_history": candidate_history,
         "generation_comparison": generation_comparison,
     }
+
+
+def save_evolution_event(db_path: str, evolution_event: dict[str, Any]) -> None:
+    payload = validate_evolution_event(evolution_event).to_dict()
+    initialize_database(db_path)
+    with _connect(db_path) as connection:
+        connection.execute(
+            """
+            insert into evolution_events (evolution_id, cycle_number, payload)
+            values (?, ?, ?)
+            """,
+            (payload["evolution_id"], payload["cycle_number"], _dump(payload)),
+        )
+
+
+def load_evolution_events(db_path: str, limit: int = 10) -> list[dict[str, Any]]:
+    initialize_database(db_path)
+    with _connect(db_path) as connection:
+        rows = connection.execute(
+            """
+            select payload from evolution_events
+            order by id desc limit ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [_load(row["payload"]) for row in rows]
 
 
 def _connect(db_path: str) -> sqlite3.Connection:

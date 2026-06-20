@@ -1,9 +1,11 @@
 from evohunter.storage.store import (
     initialize_database,
+    load_evolution_events,
     load_match_result_history,
     load_overview,
     load_workbench_history,
     save_candidate_genes,
+    save_evolution_event,
     save_feedback_events,
     save_job_gene,
     save_match_results,
@@ -12,10 +14,12 @@ from evohunter.storage.store import (
 
 __all__ = [
     "initialize_database",
+    "load_evolution_events",
     "load_match_result_history",
     "load_overview",
     "load_workbench_history",
     "save_candidate_genes",
+    "save_evolution_event",
     "save_feedback_events",
     "save_job_gene",
     "save_match_results",

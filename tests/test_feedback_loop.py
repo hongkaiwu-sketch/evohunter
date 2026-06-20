@@ -125,3 +125,87 @@ def test_evolve_weight_config_with_summary_reports_event_counts_and_convergence(
     assert output["evolution_summary"]["weight_changes"]["salary_weight"] > 0
     assert output["evolution_summary"]["change_magnitude"] > 0
     assert output["evolution_summary"]["convergence_status"] == "adjusting"
+
+
+# ── 5-Stage Evolver tests ────────────────────────────────────────────
+
+def test_scan_feedback_patterns_returns_event_counts():
+    from evohunter.core.evolution import scan_feedback_patterns
+    events = [
+        FeedbackEvent.from_dict({"candidate_id": "c_001", "job_id": "j_001", "event_type": "salary_mismatch"}),
+        FeedbackEvent.from_dict({"candidate_id": "c_002", "job_id": "j_001", "event_type": "salary_mismatch"}),
+        FeedbackEvent.from_dict({"candidate_id": "c_003", "job_id": "j_001", "event_type": "location_mismatch"}),
+    ]
+    report = scan_feedback_patterns(events)
+    assert report["event_counts"] == {"salary_mismatch": 2, "location_mismatch": 1}
+    assert report["pattern_severity"] in ("low", "medium", "high")
+    assert "suggested_focus" in report
+
+
+def test_scan_feedback_patterns_detects_severity():
+    from evohunter.core.evolution import scan_feedback_patterns
+    events = [
+        FeedbackEvent.from_dict({"candidate_id": f"c_{i:03d}", "job_id": "j_001", "event_type": t})
+        for i, t in enumerate(["reply_positive", "interview_passed", "salary_mismatch", "location_mismatch", "no_reply"])
+    ]
+    report = scan_feedback_patterns(events)
+    assert report["pattern_severity"] == "high"
+
+
+def test_select_target_dimensions_returns_strategy():
+    from evohunter.core.evolution import select_target_dimensions
+    scan_report = {
+        "event_counts": {"salary_mismatch": 2},
+        "dimension_impact": {"salary_weight": 0.08},
+        "total_delta_magnitude": 0.08,
+        "pattern_severity": "medium",
+        "suggested_focus": ["salary_weight"],
+    }
+    strategy = select_target_dimensions(scan_report, WeightConfig.from_dict({}))
+    assert strategy["strategy"] == "balanced"
+    assert 0 < strategy["mutation_rate"] <= 1
+    assert strategy["mutation_strength"] > 0
+    assert "salary_weight" in strategy["target_dimensions"]
+
+
+def test_validate_candidate_weights_checks_stability():
+    from evohunter.core.evolution import validate_candidate_weights
+    original = WeightConfig.from_dict({})
+    candidate = WeightConfig.from_dict({
+        "skill_weight": 0.5, "experience_weight": 0.2,
+        "salary_weight": 0.15, "location_weight": 0.1, "seniority_weight": 0.05,
+    })
+    report = validate_candidate_weights(candidate, original)
+    assert "weight_stability" in report
+    assert "is_improvement" in report
+    assert report["validation_confidence"] == "low"
+
+
+def test_evomap_evolver_run_cycle_returns_full_output():
+    from evohunter.core.evolution.evolver import EvoMapEvolver
+    evolver = EvoMapEvolver()
+    result = evolver.run_cycle(
+        weight_config={},
+        feedback_events=[
+            {"candidate_id": "c_001", "job_id": "j_001", "event_type": "salary_mismatch"},
+        ],
+    )
+    assert "weight_config" in result
+    assert "evolution_summary" in result
+    assert "scan_report" in result
+    assert "selection_strategy" in result
+    assert "validation_report" in result
+    assert "evolution_event" in result
+    assert result["evolution_summary"]["total_events"] == 1
+    assert result["evolution_event"]["intent"] == "recruiting_weight_tuning"
+
+
+def test_evolve_backward_compatible_without_cycle_flag():
+    from evohunter.core.evolution import evolve_weight_config
+    wc = WeightConfig.from_dict({})
+    result = evolve_weight_config(wc, [
+        {"candidate_id": "c_001", "job_id": "j_001", "event_type": "reply_positive"},
+    ])
+    assert result.generation == 1
+    assert result.skill_weight > wc.skill_weight
+    assert sum(result.weights().values()) == pytest.approx(1.0)

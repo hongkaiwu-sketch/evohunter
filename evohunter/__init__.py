@@ -8,6 +8,7 @@ from evohunter.core.protocol import (
 )
 from evohunter.core.evaluator import GEPEvaluator
 from evohunter.core.evolution import (
+    EvoMapEvolver,
     crossover_weight_configs,
     evolve_weight_config,
     mutate_weight_config,
@@ -16,6 +17,7 @@ from evohunter.core.evolution import (
 
 __all__ = [
     "CandidateGene",
+    "EvoMapEvolver",
     "FeedbackEvent",
     "GEPEvaluator",
     "JobGene",

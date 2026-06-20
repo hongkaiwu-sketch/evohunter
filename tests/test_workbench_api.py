@@ -219,3 +219,61 @@ def test_handle_scrape_accepts_batch_sources(tmp_path):
 def test_handle_api_request_rejects_unknown_path():
     with pytest.raises(ApiError, match="unknown endpoint"):
         handle_api_request("/api/missing", {})
+
+
+# ── Evolver cycle API tests ──────────────────────────────────────────
+
+def test_handle_evolve_with_evolver_cycle_returns_extended_data():
+    output = handle_api_request(
+        "/api/evolve",
+        {
+            "weight_config": {},
+            "feedback_events": [
+                {"candidate_id": "c_001", "job_id": "j_001", "event_type": "salary_mismatch"},
+                {"candidate_id": "c_002", "job_id": "j_001", "event_type": "location_mismatch"},
+            ],
+            "use_evolver_cycle": True,
+        },
+    )
+    assert "weight_config" in output
+    assert "evolution_summary" in output
+    assert "scan_report" in output
+    assert "selection_strategy" in output
+    assert "evolution_event" in output
+    assert output["evolution_summary"]["total_events"] == 2
+    assert "generation" in output["weight_config"]
+
+
+def test_handle_evolve_backward_compatible_without_flag():
+    output = handle_api_request(
+        "/api/evolve",
+        {
+            "weight_config": {},
+            "feedback_events": [
+                {"candidate_id": "c_001", "job_id": "j_001", "event_type": "salary_mismatch"},
+            ],
+        },
+    )
+    assert "weight_config" in output
+    assert "evolution_summary" in output
+    assert "scan_report" not in output
+
+
+def test_handle_evolve_with_db_path_saves_evolution_event(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    output = handle_api_request(
+        "/api/evolve",
+        {
+            "db_path": db_path,
+            "weight_config": {},
+            "feedback_events": [
+                {"candidate_id": "c_001", "job_id": "j_001", "event_type": "salary_mismatch"},
+            ],
+            "use_evolver_cycle": True,
+        },
+    )
+    assert output["weight_config"]["generation"] == 1
+    from evohunter.storage import load_evolution_events
+    events = load_evolution_events(db_path)
+    assert len(events) == 1
+    assert events[0]["intent"] == "recruiting_weight_tuning"

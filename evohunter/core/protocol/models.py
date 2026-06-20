@@ -324,6 +324,100 @@ class MatchResult:
         }
 
 
+def generate_evolution_id() -> str:
+    import uuid
+    return f"ev_{uuid.uuid4().hex[:12]}"
+
+
+@dataclass(frozen=True)
+class EvolutionEvent:
+    evolution_id: str
+    cycle_number: int
+    intent: str
+    strategy: str
+    capsule_id: str | None
+    genes_used: list[dict[str, Any]]
+    outcome: dict[str, Any]
+    mutations_tried: int
+    total_cycles: int
+    created_at: str
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "EvolutionEvent":
+        data = _require_mapping(data, "evolution_event")
+        return cls(
+            evolution_id=_require_string(data, "evolution_id"),
+            cycle_number=int(_number(data, "cycle_number", 0)),
+            intent=_require_string(data, "intent"),
+            strategy=_optional_string(data, "strategy", "balanced"),
+            capsule_id=data.get("capsule_id"),
+            genes_used=[dict(g) for g in data.get("genes_used", []) if isinstance(g, dict)],
+            outcome=dict(data.get("outcome", {})),
+            mutations_tried=int(_number(data, "mutations_tried", 0)),
+            total_cycles=int(_number(data, "total_cycles", 0)),
+            created_at=_optional_string(data, "created_at", ""),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "evolution_id": self.evolution_id,
+            "cycle_number": self.cycle_number,
+            "intent": self.intent,
+            "strategy": self.strategy,
+            "genes_used": [dict(g) for g in self.genes_used],
+            "outcome": self.outcome,
+            "mutations_tried": self.mutations_tried,
+            "total_cycles": self.total_cycles,
+            "created_at": self.created_at,
+        }
+        if self.capsule_id is not None:
+            result["capsule_id"] = self.capsule_id
+        return result
+
+
+@dataclass(frozen=True)
+class A2AEnvelope:
+    protocol: str
+    protocol_version: str
+    message_type: str
+    message_id: str
+    sender_id: str
+    timestamp: str
+    payload: dict[str, Any]
+
+    @classmethod
+    def create(
+        cls,
+        message_type: str,
+        sender_id: str,
+        payload: dict[str, Any],
+        message_id: str | None = None,
+        timestamp: str | None = None,
+    ) -> "A2AEnvelope":
+        import uuid
+        from datetime import datetime, timezone
+        return cls(
+            protocol="gep-a2a",
+            protocol_version="1.0.0",
+            message_type=message_type,
+            message_id=message_id or f"msg_{int(datetime.now(timezone.utc).timestamp())}_{uuid.uuid4().hex[:8]}",
+            sender_id=sender_id,
+            timestamp=timestamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            payload=payload,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "protocol": self.protocol,
+            "protocol_version": self.protocol_version,
+            "message_type": self.message_type,
+            "message_id": self.message_id,
+            "sender_id": self.sender_id,
+            "timestamp": self.timestamp,
+            "payload": self.payload,
+        }
+
+
 def validate_job_gene(job_gene: dict[str, Any] | JobGene) -> JobGene:
     if isinstance(job_gene, JobGene):
         return job_gene
@@ -346,3 +440,9 @@ def validate_weight_config(weight_config: dict[str, Any] | WeightConfig) -> Weig
     if isinstance(weight_config, WeightConfig):
         return weight_config
     return WeightConfig.from_dict(weight_config)
+
+
+def validate_evolution_event(evolution_event: dict[str, Any] | EvolutionEvent) -> EvolutionEvent:
+    if isinstance(evolution_event, EvolutionEvent):
+        return evolution_event
+    return EvolutionEvent.from_dict(evolution_event)

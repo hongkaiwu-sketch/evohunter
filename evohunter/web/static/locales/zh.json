@@ -43,10 +43,12 @@
     "sources": "来源 URL 或本地路径",
     "candidate_text": "候选人文本",
     "weight_config": "权重配置 JSON",
-    "feedback_events": "反馈事件 JSON"
+    "feedback_events": "反馈事件 JSON",
+    "sender_id": "节点ID"
   },
   "placeholders": {
-    "sources": "每行一个来源"
+    "sources": "每行一个来源",
+    "sender_id": "如 node_abc123"
   },
   "buttons": {
     "parse_job": "解析 JD",
@@ -54,7 +56,10 @@
     "parse_candidates": "解析候选人",
     "score": "评分",
     "evolve": "进化",
-    "draft": "草稿"
+    "draft": "草稿",
+    "enhanced_cycle": "5阶段",
+    "publish": "发布到Hub",
+    "fetch": "从Hub获取"
   },
   "table": {
     "candidate": "候选人",
@@ -68,7 +73,10 @@
     "generations": "代际对比",
     "total_events": "事件数",
     "change_magnitude": "变化幅度",
-    "convergence": "状态"
+    "convergence": "状态",
+    "strategy": "策略",
+    "severity": "严重度",
+    "targets": "目标维度"
   },
   "messages": {
     "checking_api_key": "正在检查本地 API key",
@@ -80,7 +88,10 @@
     "parsing": "解析中",
     "scoring": "评分中",
     "evolving": "进化中",
+    "evolving_cycle": "正在运行5阶段进化",
     "drafting": "生成草稿中",
+    "publishing": "正在发布",
+    "fetching": "正在获取",
     "source_cleaned": "来源已清洗",
     "sources_cleaned": "已清洗 {success}/{total} 个来源",
     "jd_parsed": "JD 已解析",
@@ -88,6 +99,9 @@
     "results_scored": "已评分 {count} 个结果",
     "weights_evolved": "权重已进化",
     "outreach_generated": "触达草稿已生成",
+    "published_to_hub": "已发布到EvoMap Hub",
+    "publish_failed": "Hub发布失败",
+    "fetched_from_hub": "已从Hub获取",
     "score_empty": "解析 JD 和候选人后即可评分。",
     "history_empty": "暂无历史"
   },

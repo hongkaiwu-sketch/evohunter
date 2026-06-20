@@ -132,13 +132,28 @@
               <h2 id="evolve-title" data-i18n="panels.evolve_title">Feedback evolution</h2>
               <p data-i18n="panels.evolve_help">Update weights from reply or interview feedback.</p>
             </div>
-            <button class="secondary-button" id="evolve-button" type="button" disabled data-i18n="buttons.evolve">Evolve</button>
+            <div class="button-row">
+              <label class="toggle-label">
+                <input type="checkbox" id="enhanced-cycle-toggle">
+                <span data-i18n="buttons.enhanced_cycle">5-stage</span>
+              </label>
+              <button class="secondary-button" id="evolve-button" type="button" disabled data-i18n="buttons.evolve">Evolve</button>
+            </div>
           </div>
           <label for="feedback-input" data-i18n="labels.feedback_events">Feedback events JSON</label>
           <textarea class="compact" id="feedback-input" spellcheck="false">[]</textarea>
           <div class="message" id="evolve-message" role="status"></div>
           <div class="summary-grid" id="evolution-summary" aria-live="polite"></div>
           <pre class="json-preview" id="evolve-output" tabindex="0">{}</pre>
+          <div class="a2a-controls" id="a2a-controls" style="display:none">
+            <label for="sender-id-input" data-i18n="labels.sender_id">Node ID</label>
+            <input id="sender-id-input" type="text" autocomplete="off" data-i18n-placeholder="placeholders.sender_id">
+            <div class="button-row">
+              <button class="secondary-button" id="publish-button" type="button" disabled data-i18n="buttons.publish">Publish to Hub</button>
+              <button class="secondary-button" id="fetch-button" type="button" disabled data-i18n="buttons.fetch">Fetch from Hub</button>
+            </div>
+            <div class="message" id="a2a-status" role="status"></div>
+          </div>
         </section>
 
         <section class="tool-panel" aria-labelledby="outreach-title">

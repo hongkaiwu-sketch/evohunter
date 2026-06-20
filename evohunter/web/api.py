@@ -4,7 +4,10 @@ from typing import Any
 
 from evohunter.ai import build_evomap_api_key
 from evohunter.core.evaluator import GEPEvaluator
-from evohunter.core.evolution import evolve_weight_config_with_summary
+from evohunter.core.evolution import (
+    EvoMapEvolver,
+    evolve_weight_config_with_summary,
+)
 from evohunter.data_scraper import scrape_source, scrape_sources
 from evohunter.llm_parser import (
     parse_candidate_texts,
@@ -14,9 +17,11 @@ from evohunter.llm_parser import (
 )
 from evohunter.outreach import draft_outreach
 from evohunter.storage import (
+    load_evolution_events,
     load_workbench_history,
     load_overview,
     save_candidate_genes,
+    save_evolution_event,
     save_feedback_events,
     save_job_gene,
     save_match_results,
@@ -112,15 +117,60 @@ def _score(payload: dict[str, Any]) -> list[dict[str, Any]]:
 def _evolve(payload: dict[str, Any]) -> dict[str, Any]:
     weight_config = payload.get("weight_config", {})
     feedback_events = payload.get("feedback_events", [])
+    use_evolver_cycle = payload.get("use_evolver_cycle", False)
+    publish_to_hub = payload.get("publish_to_hub", False)
+    fetch_from_hub = payload.get("fetch_from_hub", False)
+    sender_id = _optional_string(payload, "sender_id")
+
     if not isinstance(weight_config, dict):
         raise ApiError("weight_config must be a dict")
     if not isinstance(feedback_events, list):
         raise ApiError("feedback_events must be a list")
-    output = evolve_weight_config_with_summary(weight_config, feedback_events)
+
     db_path = _optional_string(payload, "db_path")
+
+    if use_evolver_cycle:
+        a2a_client = None
+        if sender_id:
+            try:
+                from evohunter.core.evolution.a2a import A2AClient
+                a2a_client = A2AClient(sender_id=sender_id)
+            except Exception:
+                pass  # A2A is optional
+
+        evolver = EvoMapEvolver(
+            db_path=db_path or None,
+            a2a_client=a2a_client,
+            sender_id=sender_id or None,
+        )
+
+        match_results = None
+        if db_path:
+            try:
+                stored = load_workbench_history(db_path)
+                match_results = stored.get("score_trend", [])
+            except Exception:
+                pass
+
+        output = evolver.run_cycle(
+            weight_config=weight_config,
+            feedback_events=feedback_events,
+            match_results=match_results,
+            publish_to_hub=publish_to_hub,
+            fetch_from_hub=fetch_from_hub,
+        )
+    else:
+        output = evolve_weight_config_with_summary(weight_config, feedback_events)
+
     if db_path:
         save_feedback_events(db_path, feedback_events)
         save_weight_config(db_path, output["weight_config"], step="evolve")
+        if use_evolver_cycle and "evolution_event" in output:
+            try:
+                save_evolution_event(db_path, output["evolution_event"])
+            except Exception:
+                pass
+
     return output
 
 

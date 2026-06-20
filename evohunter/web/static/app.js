@@ -6,6 +6,11 @@ const state = {
   matchResults: [],
   outreachDraft: null,
   evolutionSummary: null,
+  scanReport: null,
+  selectionStrategy: null,
+  validationReport: null,
+  senderId: localStorage.getItem("evohunter_sender_id") || "",
+  a2aStatus: null,
   history: {
     score_trend: [],
     candidate_history: {},
@@ -51,6 +56,12 @@ const elements = {
   parseCandidatesButton: document.querySelector("#parse-candidates-button"),
   scoreButton: document.querySelector("#score-button"),
   evolveButton: document.querySelector("#evolve-button"),
+  enhancedCycleToggle: document.querySelector("#enhanced-cycle-toggle"),
+  senderIdInput: document.querySelector("#sender-id-input"),
+  publishButton: document.querySelector("#publish-button"),
+  fetchButton: document.querySelector("#fetch-button"),
+  a2aControls: document.querySelector("#a2a-controls"),
+  a2aStatus: document.querySelector("#a2a-status"),
   draftOutreachButton: document.querySelector("#draft-outreach-button"),
   stepItems: Object.fromEntries(
     Array.from(document.querySelectorAll("[data-step]")).map((step) => [step.dataset.step, step])
@@ -75,6 +86,7 @@ async function start() {
   refreshOverview();
   refreshHistory();
   syncControlState();
+  syncA2AControls();
 }
 
 function bindEvents() {
@@ -84,6 +96,14 @@ function bindEvents() {
   elements.parseCandidatesButton.addEventListener("click", parseCandidates);
   elements.scoreButton.addEventListener("click", scoreCandidates);
   elements.evolveButton.addEventListener("click", evolveWeights);
+  elements.enhancedCycleToggle.addEventListener("change", syncControlState);
+  elements.senderIdInput.addEventListener("input", () => {
+    state.senderId = elements.senderIdInput.value.trim();
+    localStorage.setItem("evohunter_sender_id", state.senderId);
+    syncA2AControls();
+  });
+  elements.publishButton.addEventListener("click", publishToHub);
+  elements.fetchButton.addEventListener("click", fetchFromHub);
   elements.draftOutreachButton.addEventListener("click", draftOutreach);
   for (const input of [
     elements.jobText,
@@ -240,24 +260,35 @@ async function scoreCandidates() {
 
 async function evolveWeights() {
   setStepState("evolve", "active");
+  const useEvolverCycle = elements.enhancedCycleToggle.checked;
   await runTask(elements.evolveMessage, async () => {
     const weightConfig = parseJsonBlock(elements.weightsInput.value, "weight config");
     const feedbackEvents = parseJsonBlock(elements.feedbackInput.value, "feedback events");
-    const output = await apiPost("/api/evolve", {
+    const payload = {
       db_path: state.dbPath,
       weight_config: weightConfig,
-      feedback_events: feedbackEvents
-    });
+      feedback_events: feedbackEvents,
+      use_evolver_cycle: useEvolverCycle,
+      sender_id: state.senderId,
+    };
+    const output = await apiPost("/api/evolve", payload);
     state.weightConfig = output.weight_config;
     state.evolutionSummary = output.evolution_summary;
+    state.scanReport = output.scan_report || null;
+    state.selectionStrategy = output.selection_strategy || null;
+    state.validationReport = output.validation_report || null;
     elements.weightsInput.value = JSON.stringify(state.weightConfig, null, 2);
     renderJson(elements.evolveOutput, state.weightConfig);
     renderEvolutionSummary(state.evolutionSummary);
     completeStep("evolve");
     await refreshOverview();
     await refreshHistory();
+    syncA2AControls();
+    if (useEvolverCycle && output.evolution_summary.strategy) {
+      return `${t("messages.weights_evolved")} (${output.evolution_summary.strategy}, ${output.evolution_summary.pattern_severity})`;
+    }
     return t("messages.weights_evolved");
-  }, { button: elements.evolveButton, busyLabel: t("messages.evolving") });
+  }, { button: elements.evolveButton, busyLabel: useEvolverCycle ? t("messages.evolving_cycle") : t("messages.evolving") });
 }
 
 async function draftOutreach() {
@@ -363,8 +394,17 @@ function renderEvolutionSummary(summary) {
   const items = [
     [t("history.total_events"), summary.total_events],
     [t("history.change_magnitude"), Number(summary.change_magnitude || 0).toFixed(4)],
-    [t("history.convergence"), summary.convergence_status || "unknown"]
+    [t("history.convergence"), summary.convergence_status || "unknown"],
   ];
+  if (summary.strategy) {
+    items.push([t("history.strategy"), summary.strategy]);
+  }
+  if (summary.pattern_severity) {
+    items.push([t("history.severity"), summary.pattern_severity]);
+  }
+  if (summary.target_dimensions && summary.target_dimensions.length) {
+    items.push([t("history.targets"), summary.target_dimensions.join(", ")]);
+  }
   elements.evolutionSummary.append(
     ...items.map(([label, value]) => {
       const item = document.createElement("div");
@@ -376,6 +416,78 @@ function renderEvolutionSummary(summary) {
       return item;
     })
   );
+}
+
+async function publishToHub() {
+  await runTask(elements.a2aStatus, async () => {
+    const weightConfig = parseJsonBlock(elements.weightsInput.value, "weight config");
+    const feedbackEvents = parseJsonBlock(elements.feedbackInput.value, "feedback events");
+    const output = await apiPost("/api/evolve", {
+      db_path: state.dbPath,
+      weight_config: weightConfig,
+      feedback_events: feedbackEvents,
+      use_evolver_cycle: true,
+      publish_to_hub: true,
+      sender_id: state.senderId,
+    });
+    state.weightConfig = output.weight_config;
+    state.evolutionSummary = output.evolution_summary;
+    elements.weightsInput.value = JSON.stringify(state.weightConfig, null, 2);
+    renderJson(elements.evolveOutput, state.weightConfig);
+    state.a2aStatus = output.evolution_summary.published_to_hub ? "published" : "publish_failed";
+    renderA2AStatus();
+    return output.evolution_summary.published_to_hub
+      ? t("messages.published_to_hub")
+      : t("messages.publish_failed");
+  }, { button: elements.publishButton, busyLabel: t("messages.publishing") });
+}
+
+async function fetchFromHub() {
+  await runTask(elements.a2aStatus, async () => {
+    const output = await apiPost("/api/evolve", {
+      weight_config: parseJsonBlock(elements.weightsInput.value, "weight config"),
+      feedback_events: [],
+      use_evolver_cycle: true,
+      fetch_from_hub: true,
+      sender_id: state.senderId,
+    });
+    state.weightConfig = output.weight_config;
+    elements.weightsInput.value = JSON.stringify(state.weightConfig, null, 2);
+    renderJson(elements.evolveOutput, state.weightConfig);
+    renderEvolutionSummary(output.evolution_summary);
+    state.a2aStatus = "fetched";
+    return t("messages.fetched_from_hub");
+  }, { button: elements.fetchButton, busyLabel: t("messages.fetching") });
+}
+
+function syncA2AControls() {
+  const hasSender = Boolean(state.senderId);
+  if (elements.a2aControls) {
+    elements.a2aControls.style.display = hasSender ? "block" : "none";
+  }
+  if (elements.senderIdInput) {
+    elements.senderIdInput.value = state.senderId;
+  }
+  if (elements.publishButton) {
+    elements.publishButton.disabled = !hasSender || !state.weightConfig.generation;
+  }
+  if (elements.fetchButton) {
+    elements.fetchButton.disabled = !hasSender;
+  }
+}
+
+function renderA2AStatus() {
+  if (!elements.a2aStatus) return;
+  if (state.a2aStatus === "published") {
+    elements.a2aStatus.textContent = t("messages.published_to_hub");
+    elements.a2aStatus.className = "message success";
+  } else if (state.a2aStatus === "publish_failed") {
+    elements.a2aStatus.textContent = t("messages.publish_failed");
+    elements.a2aStatus.className = "message error";
+  } else if (state.a2aStatus === "fetched") {
+    elements.a2aStatus.textContent = t("messages.fetched_from_hub");
+    elements.a2aStatus.className = "message success";
+  }
 }
 
 function renderHistory(history) {
@@ -513,6 +625,7 @@ function syncControlState() {
   setReadyDisabled(elements.scoreButton, !hasScorableData());
   setReadyDisabled(elements.evolveButton, !hasFeedbackEvents());
   setReadyDisabled(elements.draftOutreachButton, !hasOutreachData());
+  syncA2AControls();
 }
 
 function hasScorableData() {

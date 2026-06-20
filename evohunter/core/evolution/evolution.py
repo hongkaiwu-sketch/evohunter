@@ -104,6 +104,255 @@ def evolve_weight_config_with_summary(
     }
 
 
+# ── Gene-level evolution adapters ─────────────────────────────────────
+
+
+def mutate_company_preferences(
+    company_gene: dict[str, Any] | Any,
+    mutation_rate: float = 0.3,
+    mutation_strength: float = 0.04,
+) -> dict[str, float]:
+    """Mutate a company's preference vector.  Accepts a CompanyGene instance or dict."""
+    prefs = _extract_prefs(company_gene, "company")
+    changed = False
+    for field in prefs:
+        if random.random() <= mutation_rate:
+            prefs[field] += random.uniform(-mutation_strength, mutation_strength)
+            changed = True
+    if not changed and mutation_rate > 0 and mutation_strength > 0:
+        keys = list(prefs.keys())
+        prefs[keys[0]] += mutation_strength
+    return _normalize_prefs(prefs)
+
+
+def crossover_company_preferences(
+    company_a: dict[str, Any] | Any,
+    company_b: dict[str, Any] | Any,
+) -> dict[str, float]:
+    """Crossover two companies' preference vectors."""
+    prefs_a = _extract_prefs(company_a, "company")
+    prefs_b = _extract_prefs(company_b, "company")
+    return _normalize_prefs({
+        f: (prefs_a[f] + prefs_b[f]) / 2 for f in prefs_a
+    })
+
+
+def mutate_candidate_preferences(
+    candidate_gene: dict[str, Any] | Any,
+    mutation_rate: float = 0.3,
+    mutation_strength: float = 0.04,
+) -> dict[str, float]:
+    """Mutate a candidate's preference vector."""
+    prefs = _extract_prefs(candidate_gene, "candidate")
+    changed = False
+    for field in prefs:
+        if random.random() <= mutation_rate:
+            prefs[field] += random.uniform(-mutation_strength, mutation_strength)
+            changed = True
+    if not changed and mutation_rate > 0 and mutation_strength > 0:
+        keys = list(prefs.keys())
+        prefs[keys[0]] += mutation_strength
+    return _normalize_prefs(prefs)
+
+
+def crossover_candidate_preferences(
+    candidate_a: dict[str, Any] | Any,
+    candidate_b: dict[str, Any] | Any,
+) -> dict[str, float]:
+    """Crossover two candidates' preference vectors."""
+    prefs_a = _extract_prefs(candidate_a, "candidate")
+    prefs_b = _extract_prefs(candidate_b, "candidate")
+    return _normalize_prefs({
+        f: (prefs_a[f] + prefs_b[f]) / 2 for f in prefs_a
+    })
+
+
+def _extract_prefs(gene: Any, kind: str) -> dict[str, float]:
+    """Extract preference vector from a gene object or dict."""
+    if isinstance(gene, dict):
+        if kind == "company":
+            return {
+                f: float(gene.get(f, 0.2))
+                for f in ("skill_importance", "experience_importance",
+                           "salary_importance", "location_importance", "seniority_importance")
+            }
+        else:
+            return {
+                f: float(gene.get(f, 0.5))
+                for f in ("values_compensation", "values_remote",
+                           "values_growth", "values_stability", "values_culture_fit")
+            }
+    # Dataclass instance
+    if hasattr(gene, "preference_vector"):
+        prefs = gene.preference_vector()
+        if prefs:
+            return {k: float(v) for k, v in prefs.items()}
+    # Fallback: try common field names
+    if kind == "company":
+        return {
+            f: float(getattr(gene, f, 0.2))
+            for f in ("skill_importance", "experience_importance",
+                       "salary_importance", "location_importance", "seniority_importance")
+        }
+    return {
+        f: float(getattr(gene, f, 0.5))
+        for f in ("values_compensation", "values_remote",
+                   "values_growth", "values_stability", "values_culture_fit")
+    }
+
+
+def _normalize_prefs(prefs: dict[str, float]) -> dict[str, float]:
+    """Clamp to [0.0, 1.0] and normalize to sum 1.0."""
+    clamped = {k: min(max(v, 0.0), 1.0) for k, v in prefs.items()}
+    total = sum(clamped.values()) or 1.0
+    return {k: round(v / total, 4) for k, v in clamped.items()}
+
+
+# ── 5-Stage Evolver helpers ──────────────────────────────────────────
+
+
+def scan_feedback_patterns(
+    feedback_events: list[FeedbackEvent],
+    match_results: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    event_counts: dict[str, int] = {}
+    dimension_impact: dict[str, float] = {field: 0.0 for field in WEIGHT_FIELDS}
+
+    for event in feedback_events:
+        event_counts[event.event_type] = event_counts.get(event.event_type, 0) + 1
+        deltas = FEEDBACK_DELTAS.get(event.event_type, {})
+        for field_name, delta in deltas.items():
+            dimension_impact[field_name] = dimension_impact.get(field_name, 0.0) + delta
+
+    total_delta_magnitude = sum(abs(v) for v in dimension_impact.values())
+
+    if len(event_counts) >= 3 and total_delta_magnitude > 0.15:
+        pattern_severity = "high"
+    elif len(event_counts) >= 2 or total_delta_magnitude > 0.08:
+        pattern_severity = "medium"
+    else:
+        pattern_severity = "low"
+
+    sorted_by_impact = sorted(
+        dimension_impact.items(), key=lambda kv: abs(kv[1]), reverse=True
+    )
+    suggested_focus = [
+        field for field, _ in sorted_by_impact[:3] if abs(dimension_impact[field]) > 0.01
+    ]
+
+    result: dict[str, Any] = {
+        "event_counts": event_counts,
+        "dimension_impact": dimension_impact,
+        "total_delta_magnitude": round(total_delta_magnitude, 4),
+        "pattern_severity": pattern_severity,
+        "suggested_focus": suggested_focus,
+    }
+
+    if match_results:
+        dimension_scores: dict[str, list[float]] = {
+            field: [] for field in WEIGHT_FIELDS
+        }
+        score_field_map = {
+            field: field.replace("_weight", "_score") for field in WEIGHT_FIELDS
+        }
+        for mr in match_results:
+            sd = mr.get("score_detail", {})
+            for weight_field, score_field in score_field_map.items():
+                if score_field in sd:
+                    dimension_scores[weight_field].append(float(sd[score_field]))
+
+        score_trend_analysis = {}
+        for field, scores in dimension_scores.items():
+            if scores:
+                avg = sum(scores) / len(scores)
+                score_trend_analysis[field] = {
+                    "average_score": round(avg, 4),
+                    "count": len(scores),
+                    "below_threshold": avg < 0.5,
+                }
+        result["score_trend_analysis"] = score_trend_analysis
+
+    return result
+
+
+def select_target_dimensions(
+    scan_report: dict[str, Any],
+    weight_config: WeightConfig,
+) -> dict[str, Any]:
+    severity = scan_report.get("pattern_severity", "low")
+    suggested_focus = scan_report.get("suggested_focus", [])
+    total_magnitude = scan_report.get("total_delta_magnitude", 0.0)
+
+    if severity == "high":
+        strategy = "aggressive"
+        mutation_rate = 0.6
+        mutation_strength = 0.06
+    elif severity == "medium":
+        strategy = "balanced"
+        mutation_rate = 0.4
+        mutation_strength = 0.04
+    else:
+        strategy = "conservative"
+        mutation_rate = 0.2
+        mutation_strength = 0.02
+
+    return {
+        "target_dimensions": suggested_focus,
+        "mutation_rate": mutation_rate,
+        "mutation_strength": mutation_strength,
+        "strategy": strategy,
+    }
+
+
+def validate_candidate_weights(
+    candidate: WeightConfig,
+    original: WeightConfig,
+    match_results: list[dict[str, Any]] | None = None,
+    evaluator: Any | None = None,
+    job_gene: dict[str, Any] | None = None,
+    candidate_genes: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    stability = sum(
+        abs(candidate.weights()[f] - original.weights()[f])
+        for f in WEIGHT_FIELDS
+    )
+
+    result: dict[str, Any] = {
+        "weight_stability": round(stability, 4),
+    }
+
+    if evaluator and job_gene and candidate_genes and match_results:
+        old_scores = [mr.get("match_score", 0) for mr in match_results]
+        new_scores: list[float] = []
+        for cg in candidate_genes:
+            mr = evaluator.score_candidate(job_gene, cg, candidate)
+            new_scores.append(mr.match_score)
+
+        old_avg = sum(old_scores) / len(old_scores) if old_scores else 0.0
+        new_avg = sum(new_scores) / len(new_scores) if new_scores else 0.0
+        score_delta = new_avg - old_avg
+
+        result["score_impact"] = {
+            "old_average": round(old_avg, 4),
+            "new_average": round(new_avg, 4),
+            "score_delta": round(score_delta, 4),
+        }
+        result["is_improvement"] = score_delta >= -0.01
+        result["validation_confidence"] = "high" if stability < 0.3 else "medium"
+    else:
+        all_in_bounds = all(
+            MIN_WEIGHT <= candidate.weights()[f] <= MAX_WEIGHT
+            for f in WEIGHT_FIELDS
+        )
+        result["is_improvement"] = all_in_bounds and stability < 0.5
+        result["validation_confidence"] = "low"
+
+    return result
+
+
+# ── Internal helpers ─────────────────────────────────────────────────
+
+
 def _apply_feedback_deltas(weight_config: WeightConfig, events: list[FeedbackEvent]) -> WeightConfig:
     weights = weight_config.weights()
     for event in events:

@@ -278,7 +278,7 @@ Workbench API 增强：
 | --- | --- |
 | `/api/parse-job` | 默认返回 `job_gene`；传入 `include_parser_metadata: true` 时返回 `parser_metadata` |
 | `/api/parse-candidates` | 默认返回 `candidate_genes`；传入 `include_parser_metadata: true` 时返回 `parser_metadata` |
-| `/api/evolve` | 返回 `weight_config` 和 `evolution_summary` |
+| `/api/evolve` | 返回 `weight_config` 和 `evolution_summary`；可选参数 `use_evolver_cycle`（5阶段进化）、`publish_to_hub`、`fetch_from_hub`、`sender_id` |
 | `/api/history` | 返回 `score_trend`、`candidate_history` 和 `generation_comparison` |
 
 ## Core 模块说明
@@ -321,6 +321,160 @@ Workbench API 增强：
 | `crossover_weight_configs(parent_a, parent_b)` | 对两个权重配置执行交叉 |
 | `evolve_weight_config(weight_config, feedback_events)` | 根据反馈事件调整评分权重 |
 | `evolve_weight_config_with_summary(weight_config, feedback_events)` | 根据反馈事件调整评分权重，并返回事件分布、权重变化和收敛状态 |
+| `scan_feedback_patterns(feedback_events, match_results)` | 分析反馈事件模式，返回严重程度、影响维度和目标建议 |
+| `select_target_dimensions(scan_report, weight_config)` | 根据扫描报告选择目标维度和变异参数 |
+| `validate_candidate_weights(candidate, original, ...)` | 用历史数据验证候选权重配置的优劣 |
+| `EvoMapEvolver(db_path, evaluator, a2a_client, sender_id)` | 5阶段进化编排器 (Scan, Select, Mutate, Validate, Solidify) |
+| `EvoMapEvolver.run_cycle(...)` | 运行完整进化循环，返回进化结果和事件记录 |
+| `A2AClient(sender_id, api_key, base_url)` | A2A 协议客户端，连接 EvoMap Hub |
+| `A2AClient.publish(evolution_event, weight_config)` | 发布进化结果到 EvoMap Hub |
+| `A2AClient.fetch(limit)` | 从 Hub 拉取最优权重配置 |
+| `EvolutionEvent` | 进化事件模型，记录进化循环元数据 |
+| `A2AEnvelope` | A2A 协议消息封套模型 |
+
+## 共享基因池架构
+
+多台机器或同一台机器上启动多个 EvoHunter 实例时，可以通过 EvoMap Hub 的 A2A 协议共享进化出的最优权重，实现并发进化。
+
+```mermaid
+flowchart TB
+  subgraph local["Local EvoHunter Instance"]
+    evolver["EvoMapEvolver<br/>5-Stage Cycle"]
+    scanner["1. Scan<br/>pattern analysis"]
+    selector["2. Select<br/>target dimensions"]
+    mutator["3. Mutate<br/>generate candidates"]
+    validator["4. Validate<br/>re-score historical"]
+    solidifier["5. Solidify<br/>pick best config"]
+    storage["SQLite Storage<br/>weight_configs,<br/>evolution_events"]
+    evolver --> scanner --> selector --> mutator --> validator --> solidifier
+    solidifier --> storage
+    storage -.->|"load match_results"| validator
+  end
+
+  subgraph hub["EvoMap Hub (A2A)"]
+    a2a_publish["/a2a/publish"]
+    a2a_fetch["/a2a/fetch"]
+    hub_db[(Shared Gene Pool<br/>capsules + genes)]
+    a2a_publish --> hub_db
+    hub_db --> a2a_fetch
+  end
+
+  subgraph network["Other EvoHunter Nodes"]
+    node2["Node B"]
+    node3["Node C"]
+  end
+
+  evolver -.->|"publish_to_hub=True"| a2a_publish
+  node2 --> a2a_publish
+  node2 --> a2a_fetch
+  node3 --> a2a_publish
+  node3 --> a2a_fetch
+
+  a2a_fetch -.->|"best configs"| evolver
+  a2a_fetch -.->|"best configs"| node2
+  a2a_fetch -.->|"best configs"| node3
+```
+
+```json
+{
+  "protocol": "gep-a2a",
+  "protocol_version": "1.0.0",
+  "message_type": "publish",
+  "message_id": "msg_1718930400_a1b2c3d4",
+  "sender_id": "node_permanent_id",
+  "timestamp": "2026-06-20T12:00:00.000Z",
+  "payload": { ... }
+}
+```
+
+### 工作模式
+
+| 模式 | 网络 | 说明 |
+| --- | --- | --- |
+| 本地循环 | 无 | 5阶段进化完全在本地运行 |
+| 发布 | 可选 | 最优权重 + EvolutionEvent 通过 A2A 发送到 Hub |
+| 拉取 | 可选 | 从 Hub 获取优质权重混合到本地变异池 |
+| 完整循环 | 两者 | Fetch → 本地进化 → Publish |
+
+## 待办：三方基因模型 + A2A 知识交换
+
+当前 EvoHunter 使用单一全局权重为所有候选人评分，仅建模了"公司偏好"一侧。更完整的模型应拆分为三方基因，通过 A2A 网络交换脱敏后的经验数据。
+
+### 三方基因架构
+
+```
+                  公司基因 (CompanyGene)               候选人基因 (CandidateGene)
+              ┌──────────────────────┐            ┌──────────────────────┐
+              │  skill_weight: 0.4   │            │  expected_salary: 30k │
+              │  experience_weight: 0.1│          │  prefers_remote: true│
+              │  salary_weight: 0.3  │            │  values_growth: 0.8  │
+              │  location_weight: 0.1│            │  values_stability: 0.5│
+              │  seniority_weight: 0.1│           │  level_match_strict: 0.6│
+              └──────────┬───────────┘            └──────────┬───────────┘
+                         │                                   │
+                         └────────────┬──────────────────────┘
+                                      │
+                       匹配 = 公司视角评分 × 候选人视角评分
+                                      │
+                        双方偏好都满足才是好匹配
+                         ┌──────────┴──────────┐
+                         │    市场基因 (MarketGene)   │
+                         │ ──────────────────────── │
+                         │  技能关联图谱              │
+                         │  市场薪资范围              │
+                         │  岗位标准权重基线          │
+                         │  简历解析策略              │
+                         │  匿名化招聘结果模式        │
+                         └──────────────────────────┘
+                                  ↑ A2A 交换 ↑
+                           所有实例共享，共同进化
+```
+
+### A2A 交换策略
+
+```
+可交换（脱敏后）                  脱敏方式                      价值
+──────────────────────────────────────────────────────────────────────
+候选人基因                       去姓名、联系方式、公司名         多个Agent不用重复解析同一简历
+                                保留 skill_vector + 经验年限      交叉验证：同一候选人被多公司面试的结果
+                                用 candidate_hash 标识
+
+公司基因                         去公司名、具体JD内容             新Agent快速了解这家公司的偏好
+                                保留行业标签 + 偏好权重          同公司不同岗位共享经验
+
+匹配结果（匿名化）               只留特征向量和结果                 "技能0.9+经验4年的候选人面试通过率85%"
+                                "skill:0.9, exp:4年 → passed"   "这家公司对薪资弹性大"
+                                不暴露谁被谁录用                 作为进化的训练样本
+```
+
+### 典型场景
+
+**场景 A：同一候选人被不同 Agent 推荐给不同公司**
+
+```
+Agent1: Alice → 公司X → interview_passed（公司X看重技能，Alice技能0.92）
+Agent2: Alice → 公司Y → salary_mismatch（公司Y预算紧，Alice期望高）
+
+Agent2 不用重新解析 Alice 的简历 → 从 Hub 拉取候选基因
+还能看到 "Alice 被 X 面试通过" → 确认候选人质量没问题，只是 Y 预算不匹配
+```
+
+**场景 B：同一家公司被多个 Agent 服务**
+
+```
+Agent1: 公司X招 AI 工程师 → 学到 X 重视技能、对薪资弹性大
+Agent2: 公司X招 数据分析师 → 从 Hub 拉取公司X的偏好基因
+                            不需要重新摸索 "X 公司到底看重什么"
+```
+
+### 待实现
+
+- [ ] `CompanyGene` — 公司偏好基因模型，支持脱敏交换（去公司名、保留行业+偏好权重）
+- [ ] `CandidateGene` — 增强候选人基因模型，增加候选人偏好维度（期望薪资、远程意愿、成长/稳定性偏好），支持脱敏交换（用 hash 标识替代姓名）
+- [ ] `MarketGene` — 市场层知识基因（技能关联图谱、市场薪资范围、岗位基准权重、简历解析策略、匿名化招聘结果）
+- [ ] 双向匹配评分 — 公司视角 + 候选人视角的双向打分
+- [ ] A2A 交换内容改造 — 从交换单一 `weight_config` 改为交换脱敏后的三方基因（CompanyGene + CandidateGene + MarketGene）
+- [ ] 隐私脱敏层 — 发布前移除 PII（姓名、公司名、联系方式），用内容哈希做去重标识
 
 ## 使用方式
 

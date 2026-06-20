@@ -75,6 +75,10 @@ def _build_parser() -> argparse.ArgumentParser:
     evolve_parser.add_argument("--feedback", required=True)
     evolve_parser.add_argument("--output", required=True)
     evolve_parser.add_argument("--db-path")
+    evolve_parser.add_argument("--use-evolver-cycle", action="store_true")
+    evolve_parser.add_argument("--publish", action="store_true")
+    evolve_parser.add_argument("--fetch", action="store_true")
+    evolve_parser.add_argument("--sender-id")
 
     scrape_parser = subparsers.add_parser("scrape")
     scrape_parser.add_argument("--source", action="append", required=True)
@@ -124,11 +128,45 @@ def _run_score(args: argparse.Namespace) -> None:
 def _run_evolve(args: argparse.Namespace) -> None:
     weight_config = _read_json(args.weights)
     feedback_events = _read_json(args.feedback)
-    evolved = evolve_weight_config(weight_config, feedback_events)
-    _write_json(args.output, evolved.to_dict())
+    evolution_result = None
+
+    if args.use_evolver_cycle:
+        from evohunter.core.evolution.a2a import A2AClient
+        from evohunter.core.evolution.evolver import EvoMapEvolver
+
+        a2a_client = None
+        if args.sender_id:
+            try:
+                a2a_client = A2AClient(sender_id=args.sender_id)
+            except Exception:
+                pass
+
+        evolver = EvoMapEvolver(
+            db_path=args.db_path,
+            a2a_client=a2a_client,
+            sender_id=args.sender_id,
+        )
+        evolution_result = evolver.run_cycle(
+            weight_config=weight_config,
+            feedback_events=feedback_events,
+            publish_to_hub=args.publish,
+            fetch_from_hub=args.fetch,
+        )
+        evolved = evolution_result["weight_config"]
+    else:
+        from evohunter.core.evolution import evolve_weight_config as _evolve_func
+        evolved = _evolve_func(weight_config, feedback_events).to_dict()
+
+    _write_json(args.output, evolved)
     if args.db_path:
         save_feedback_events(args.db_path, feedback_events)
-        save_weight_config(args.db_path, evolved.to_dict(), step="evolve")
+        save_weight_config(args.db_path, evolved, step="evolve")
+        if evolution_result is not None and "evolution_event" in evolution_result:
+            try:
+                from evohunter.storage import save_evolution_event
+                save_evolution_event(args.db_path, evolution_result["evolution_event"])
+            except Exception:
+                pass
 
 
 def _run_scrape(args: argparse.Namespace) -> None:

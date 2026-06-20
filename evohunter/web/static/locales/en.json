@@ -43,10 +43,12 @@
     "sources": "Source URLs or local paths",
     "candidate_text": "Candidate text",
     "weight_config": "Weight config JSON",
-    "feedback_events": "Feedback events JSON"
+    "feedback_events": "Feedback events JSON",
+    "sender_id": "Node ID"
   },
   "placeholders": {
-    "sources": "One source per line"
+    "sources": "One source per line",
+    "sender_id": "e.g. node_abc123"
   },
   "buttons": {
     "parse_job": "Parse JD",
@@ -54,7 +56,10 @@
     "parse_candidates": "Parse candidates",
     "score": "Score",
     "evolve": "Evolve",
-    "draft": "Draft"
+    "draft": "Draft",
+    "enhanced_cycle": "5-stage",
+    "publish": "Publish to Hub",
+    "fetch": "Fetch from Hub"
   },
   "table": {
     "candidate": "Candidate",
@@ -68,7 +73,10 @@
     "generations": "Generation comparison",
     "total_events": "Events",
     "change_magnitude": "Change",
-    "convergence": "Status"
+    "convergence": "Status",
+    "strategy": "Strategy",
+    "severity": "Severity",
+    "targets": "Targets"
   },
   "messages": {
     "checking_api_key": "Checking local API key",
@@ -80,7 +88,10 @@
     "parsing": "Parsing",
     "scoring": "Scoring",
     "evolving": "Evolving",
+    "evolving_cycle": "Running 5-stage cycle",
     "drafting": "Drafting",
+    "publishing": "Publishing",
+    "fetching": "Fetching",
     "source_cleaned": "Source cleaned",
     "sources_cleaned": "{success}/{total} sources cleaned",
     "jd_parsed": "JD parsed",
@@ -88,6 +99,9 @@
     "results_scored": "{count} results scored",
     "weights_evolved": "Weights evolved",
     "outreach_generated": "Outreach draft generated",
+    "published_to_hub": "Published to EvoMap Hub",
+    "publish_failed": "Hub publish failed",
+    "fetched_from_hub": "Fetched from Hub",
     "score_empty": "Parse a JD and candidates to enable scoring.",
     "history_empty": "No history yet"
   },

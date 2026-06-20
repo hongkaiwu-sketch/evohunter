@@ -1,0 +1,22 @@
+services:
+  evohunter:
+    build: .
+    container_name: evohunter-workbench
+    ports:
+      - "8000:8000"
+    volumes:
+      - evohunter_data:/data
+    environment:
+      - EVOMAP_API_KEY=${EVOMAP_API_KEY:-}
+      - API_KEY=${API_KEY:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  evohunter_data:
+    driver: local
