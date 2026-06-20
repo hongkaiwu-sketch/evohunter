@@ -11,93 +11,99 @@
 
 <header class="topbar">
   <a href="/" class="logo">Evo<span>Hunter</span></a>
-
-  <div class="pipeline-bar" id="pipeline">
-    <div class="pl-node" data-node="jd">
-      <span class="pl-dot"></span>
-      <strong>JD</strong>
-      <small>Generate</small>
-    </div>
-    <div class="pl-edge"></div>
-    <div class="pl-node" data-node="parse">
-      <span class="pl-dot"></span>
-      <strong>Parse</strong>
-      <small>Assess</small>
-    </div>
-    <div class="pl-edge"></div>
-    <div class="pl-node" data-node="outreach">
-      <span class="pl-dot"></span>
-      <strong>Outreach</strong>
-      <small>Contact</small>
-    </div>
-    <div class="pl-edge"></div>
-    <div class="pl-node" data-node="report">
-      <span class="pl-dot"></span>
-      <strong>Report</strong>
-      <small>Evaluate</small>
-    </div>
-  </div>
-
+  <span class="badge" id="gen-badge">Gen 0</span>
   <nav class="topbar-nav">
-    <span class="badge" id="gen-badge">Gen 0</span>
     <a href="/evolution" class="nav-link">Evolution →</a>
   </nav>
 </header>
 
 <main class="workbench">
 
-  <!-- Input Row -->
-  <section class="input-row">
-    <div class="input-group">
-      <label for="jd-input">Job Description</label>
-      <textarea id="jd-input" placeholder="Paste a job description or describe the role...&#10;&#10;e.g. AI Agent Engineer, Shanghai, 3+ years Python/LLM, 25k-40k" rows="5"></textarea>
+  <!-- Two sides -->
+  <section class="dual-panel">
+
+    <!-- Company side: JDs -->
+    <div class="side-panel">
+      <div class="side-hdr">
+        <h2>🏢 Companies hiring</h2>
+        <button class="add-btn" id="add-jd-btn">+ Add JD</button>
+      </div>
+
+      <div class="add-form" id="jd-form" hidden>
+        <textarea id="jd-input" rows="4" placeholder="Paste or describe a job...&#10;e.g. AI Agent Engineer, Shanghai, 3yr Python/LLM, 25k-40k"></textarea>
+        <div class="form-actions">
+          <button class="action-btn primary-action" id="jd-parse-btn">Parse JD</button>
+          <button class="action-btn" id="jd-cancel-btn">Cancel</button>
+        </div>
+        <div class="form-msg" id="jd-msg"></div>
+      </div>
+
+      <div class="item-list" id="jd-list">
+        <div class="empty-hint-sm">No JDs yet. Click "+ Add JD" to start.</div>
+      </div>
     </div>
-    <div class="input-group">
-      <label for="resume-input">Resume</label>
-      <textarea id="resume-input" placeholder="Paste candidate resume text...&#10;&#10;e.g. Alice Zhang has 5 years of Python and LLM experience..." rows="5"></textarea>
+
+    <!-- Candidate side: Resumes -->
+    <div class="side-panel">
+      <div class="side-hdr">
+        <h2>👤 Candidates looking</h2>
+        <button class="add-btn" id="add-resume-btn">+ Add Resume</button>
+      </div>
+
+      <div class="add-form" id="resume-form" hidden>
+        <textarea id="resume-input" rows="4" placeholder="Paste a resume...&#10;e.g. Alice Zhang, 5yr Python+LLM, RAG architecture, currently Senior Eng, 35k/mo"></textarea>
+        <div class="form-actions">
+          <button class="action-btn primary-action" id="resume-parse-btn">Parse Resume</button>
+          <button class="action-btn" id="resume-cancel-btn">Cancel</button>
+        </div>
+        <div class="form-msg" id="resume-msg"></div>
+      </div>
+
+      <div class="item-list" id="candidate-list">
+        <div class="empty-hint-sm">No candidates yet. Click "+ Add Resume" to start.</div>
+      </div>
     </div>
-    <div class="input-actions">
-      <button id="run-btn" class="run-btn">Run Pipeline</button>
-      <span class="run-hint">or Ctrl+Enter</span>
-    </div>
+
   </section>
 
-  <!-- Split: Cards + Detail -->
-  <section class="content-row">
-    <div class="cards-panel" id="cards-panel">
-      <div class="panel-header">
-        <h2>Candidates</h2>
-        <span class="count" id="candidate-count">0</span>
-      </div>
-      <div class="cards-list" id="cards-list">
-        <div class="empty-hint">
-          <div class="empty-icon">◈</div>
-          <p>Paste a JD and resume above,<br>then run the pipeline to see results.</p>
-        </div>
+  <!-- Cross Match -->
+  <section class="match-bar">
+    <div class="match-info">
+      <span id="match-jd-count">0 JDs</span>
+      <span class="sep">×</span>
+      <span id="match-candidate-count">0 candidates</span>
+      <span class="sep">=</span>
+      <span id="match-total">0 potential matches</span>
+    </div>
+    <button class="run-btn" id="match-all-btn" disabled>Match All</button>
+  </section>
+
+  <!-- Results -->
+  <section class="results-area" id="results-area">
+    <div class="results-hdr">
+      <h2>Match Results</h2>
+      <span class="count" id="result-count">0</span>
+      <span class="sort-hint">sorted by bidirectional score</span>
+    </div>
+    <div class="cards-list" id="results-list">
+      <div class="empty-hint">
+        <div class="empty-icon">◈</div>
+        <p>Add JDs and resumes above,<br>then click "Match All" to see results.</p>
       </div>
     </div>
-
-    <aside class="detail-panel" id="detail-panel">
-      <div class="detail-empty">
-        <p>Select a candidate<br>to view details</p>
-      </div>
-      <div class="detail-content" id="detail-content" hidden></div>
-    </aside>
+    <div class="detail-panel" id="detail-panel" hidden>
+      <div class="detail-content" id="detail-content"></div>
+    </div>
   </section>
 
   <!-- Status Bar -->
   <footer class="status-bar">
-    <span id="sb-generation">Gen 0</span>
-    <span class="sep">·</span>
-    <span id="sb-candidates">0 candidates</span>
-    <span class="sep">·</span>
-    <span id="sb-avg">avg —</span>
-    <span class="sep">·</span>
-    <span id="sb-strategy">balanced</span>
-    <span class="sep">·</span>
+    <span id="sb-generation">Gen 0</span><span class="sep">·</span>
+    <span id="sb-jds">0 JDs</span><span class="sep">·</span>
+    <span id="sb-candidates">0 candidates</span><span class="sep">·</span>
+    <span id="sb-strategy">balanced</span><span class="sep">·</span>
     <span class="status-dot" id="api-dot"></span>
-    <span id="api-status">checking API</span>
-    <span class="sep">·</span>
+    <span id="api-status">checking</span>
     <a href="/evolution" class="status-link">Evolution →</a>
   </footer>
 

@@ -1,57 +1,51 @@
-// EvoHunter Workbench
+// EvoHunter Workbench — Dual-sided marketplace
 
-const API = path => fetch(path, {
+const API = (path, body) => fetch(path, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({}),
+  body: JSON.stringify(body || {}),
 }).then(r => r.json());
 
-const API_PAYLOAD = (path, payload) => fetch(path, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(payload),
-}).then(r => r.json());
-
-let assessments = [];
-let selectedIdx = -1;
+let jds = [];
+let candidates = [];
+let matches = [];
+let selectedMatch = -1;
 
 // ═══════════════════════════════════════════════════════════
 // Init
 // ═══════════════════════════════════════════════════════════
 
 async function init() {
-  document.getElementById('run-btn').onclick = runPipeline;
-  document.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.key === 'Enter') runPipeline();
-  });
+  document.getElementById('add-jd-btn').onclick = () => showForm('jd');
+  document.getElementById('add-resume-btn').onclick = () => showForm('resume');
+  document.getElementById('jd-cancel-btn').onclick = () => hideForm('jd');
+  document.getElementById('resume-cancel-btn').onclick = () => hideForm('resume');
+  document.getElementById('jd-parse-btn').onclick = () => parseJD();
+  document.getElementById('resume-parse-btn').onclick = () => parseResume();
+  document.getElementById('match-all-btn').onclick = () => matchAll();
+
   await checkApiKey();
   await updateStatusBar();
+  updateMatchBar();
 }
 
 async function checkApiKey() {
   try {
     const cfg = await API('/api/config');
     const dot = document.getElementById('api-dot');
-    const status = document.getElementById('api-status');
-    if (cfg.has_api_key) {
-      dot.classList.add('on');
-      status.textContent = 'API ready';
-    } else {
-      status.textContent = 'no API key';
-    }
-  } catch {
-    document.getElementById('api-status').textContent = 'API offline';
-  }
+    dot.classList.toggle('on', cfg.has_api_key);
+    document.getElementById('api-status').textContent = cfg.has_api_key ? 'API ready' : 'no API key';
+  } catch { document.getElementById('api-status').textContent = 'offline'; }
 }
 
 async function updateStatusBar() {
   try {
-    const data = await API_PAYLOAD('/api/evolution/data', { db_path: getDbPath() });
+    const data = await API('/api/evolution/data', { db_path: getDbPath() });
     const gens = data.generations || [];
     const last = gens.length ? gens[gens.length - 1] : null;
     document.getElementById('sb-generation').textContent = last ? `Gen ${last.generation}` : 'Gen 0';
-    document.getElementById('sb-strategy').textContent = (data.current_strategy || {}).strategy || 'balanced';
     document.getElementById('gen-badge').textContent = last ? `Gen ${last.generation}` : 'Gen 0';
+    document.getElementById('sb-strategy').textContent = (data.current_strategy || {}).strategy || 'balanced';
   } catch {}
 }
 
@@ -61,150 +55,268 @@ function getDbPath() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Pipeline
+// JD Management
 // ═══════════════════════════════════════════════════════════
 
-async function runPipeline() {
-  const jdText = document.getElementById('jd-input').value.trim();
-  const resumeText = document.getElementById('resume-input').value.trim();
-  if (!jdText || !resumeText) return;
+function showForm(side) {
+  document.getElementById(`${side}-form`).hidden = false;
+  document.getElementById(`${side}-input`).focus();
+}
 
-  const btn = document.getElementById('run-btn');
-  btn.disabled = true;
-  btn.textContent = 'Running...';
+function hideForm(side) {
+  document.getElementById(`${side}-form`).hidden = true;
+  document.getElementById(`${side}-input`).value = '';
+  document.getElementById(`${side}-msg`).textContent = '';
+}
 
-  setPipelineNode('jd', 'running');
-  clearResults();
+async function parseJD() {
+  const input = document.getElementById('jd-input');
+  const text = input.value.trim();
+  if (!text) return;
 
+  const msg = document.getElementById('jd-msg');
+  msg.textContent = 'Parsing...';
   try {
-    // Step 1: Parse JD
-    let jobGene;
-    try {
-      const parsed = await API_PAYLOAD('/api/parse-job', { text: jdText });
-      jobGene = parsed.job_gene || parsed;
-      setPipelineNode('jd', 'completed');
-    } catch (e) {
-      setPipelineNode('jd', 'failed');
-      throw e;
-    }
-
-    // Step 2: Assess candidates
-    setPipelineNode('parse', 'running');
-    try {
-      const result = await API_PAYLOAD('/api/recruiter/assess', {
-        job_gene: jobGene,
-        resume_text: resumeText,
-        language: 'zh',
-      });
-      assessments = [result];
-      setPipelineNode('parse', 'completed');
-    } catch (e) {
-      setPipelineNode('parse', 'failed');
-      assessments = [];
-    }
-
-    // Step 3+4: mark complete (outreach + report are per-candidate actions)
-    setPipelineNode('outreach', 'completed');
-    setPipelineNode('report', 'completed');
-
+    const result = await API('/api/parse-job', { text });
+    const jobGene = result.job_gene || result;
+    jds.push({
+      id: 'jd_' + Date.now(),
+      text,
+      jobGene,
+      title: jobGene.job_title || extractTitle(text),
+      skills: jobGene.required_skills || [],
+      location: jobGene.location || '',
+      salary: jobGene.salary_range || '',
+    });
+    hideForm('jd');
+    renderJDs();
+    updateCounts();
   } catch (e) {
-    console.error('Pipeline error', e);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Run Pipeline';
+    msg.textContent = 'Parse failed: ' + e.message;
+  }
+}
+
+function extractTitle(text) {
+  const firstLine = text.split('\n')[0].trim();
+  return firstLine.slice(0, 60) || 'Untitled Role';
+}
+
+function removeJD(id) {
+  jds = jds.filter(j => j.id !== id);
+  matches = matches.filter(m => m.jdId !== id);
+  renderJDs();
+  renderResults();
+  updateCounts();
+}
+
+function renderJDs() {
+  const list = document.getElementById('jd-list');
+  if (!jds.length) {
+    list.innerHTML = '<div class="empty-hint-sm">No JDs yet. Click "+ Add JD" to start.</div>';
+    return;
+  }
+  list.innerHTML = jds.map(j => `
+    <div class="item-card">
+      <span class="item-icon">🏢</span>
+      <div class="item-body">
+        <div class="item-title">${esc(j.title)}</div>
+        <div class="item-meta">${[j.location, j.salary, (j.skills||[]).slice(0,3).join('·')].filter(Boolean).join(' · ') || 'No details'}</div>
+      </div>
+      <button class="item-remove" onclick="event.stopPropagation();removeJD('${j.id}')" title="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Candidate Management
+// ═══════════════════════════════════════════════════════════
+
+async function parseResume() {
+  const input = document.getElementById('resume-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const msg = document.getElementById('resume-msg');
+  msg.textContent = 'Parsing...';
+  try {
+    // Parse into structured candidate gene
+    const parsed = await API('/api/parse-candidates', { text });
+    const genes = parsed.candidate_genes || [];
+    const gene = genes[0] || { candidate_id: 'c_' + Date.now(), skill_vector: [] };
+
+    candidates.push({
+      id: 'c_' + Date.now(),
+      text,
+      gene,
+      name: gene.candidate_id || extractName(text),
+      skills: gene.skill_vector || [],
+      years: gene.years_of_experience || 0,
+      level: gene.seniority_level || '',
+      salary: gene.salary_expectation || '',
+    });
+    hideForm('resume');
+    renderCandidates();
+    updateCounts();
+  } catch (e) {
+    msg.textContent = 'Parse failed: ' + e.message;
+  }
+}
+
+function extractName(text) {
+  const firstLine = text.split('\n')[0].trim();
+  return firstLine.slice(0, 30) || 'Unknown';
+}
+
+function removeCandidate(id) {
+  candidates = candidates.filter(c => c.id !== id);
+  matches = matches.filter(m => m.candidateId !== id);
+  renderCandidates();
+  renderResults();
+  updateCounts();
+}
+
+function renderCandidates() {
+  const list = document.getElementById('candidate-list');
+  if (!candidates.length) {
+    list.innerHTML = '<div class="empty-hint-sm">No candidates yet. Click "+ Add Resume" to start.</div>';
+    return;
+  }
+  list.innerHTML = candidates.map(c => `
+    <div class="item-card">
+      <span class="item-icon">👤</span>
+      <div class="item-body">
+        <div class="item-title">${esc(c.name)}</div>
+        <div class="item-meta">${[c.level, c.salary, (c.skills||[]).slice(0,3).join('·')].filter(Boolean).join(' · ') || 'No details'}</div>
+      </div>
+      <button class="item-remove" onclick="event.stopPropagation();removeCandidate('${c.id}')" title="Remove">×</button>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// Cross Match
+// ═══════════════════════════════════════════════════════════
+
+async function matchAll() {
+  if (!jds.length || !candidates.length) return;
+
+  const btn = document.getElementById('match-all-btn');
+  btn.disabled = true;
+  btn.textContent = 'Matching...';
+  matches = [];
+
+  for (const jd of jds) {
+    for (const candidate of candidates) {
+      try {
+        const result = await API('/api/recruiter/assess', {
+          job_gene: jd.jobGene,
+          resume_text: candidate.text,
+          language: 'zh',
+        });
+        matches.push({
+          jdId: jd.id,
+          jdTitle: jd.title,
+          candidateId: candidate.id,
+          candidateName: result.candidate_name || candidate.name,
+          score: result.match_degree || 0,
+          assessment: result,
+        });
+      } catch (e) {
+        matches.push({
+          jdId: jd.id,
+          jdTitle: jd.title,
+          candidateId: candidate.id,
+          candidateName: candidate.name,
+          score: 0,
+          assessment: { error: e.message },
+        });
+      }
+    }
   }
 
-  renderCards();
-  document.getElementById('candidate-count').textContent = String(assessments.length);
-  document.getElementById('sb-candidates').textContent = `${assessments.length} candidate${assessments.length !== 1 ? 's' : ''}`;
-  updateAvgScore();
+  // Sort by bidirectional score descending
+  matches.sort((a, b) => b.score - a.score);
+
+  btn.disabled = false;
+  btn.textContent = 'Match All';
+  renderResults();
   updateStatusBar();
 }
 
-function setPipelineNode(nodeId, status) {
-  const el = document.querySelector(`.pl-node[data-node="${nodeId}"]`);
-  if (!el) return;
-  el.classList.remove('completed', 'running', 'failed');
-  if (status !== 'pending') el.classList.add(status);
-}
+function renderResults() {
+  const list = document.getElementById('results-list');
+  const count = document.getElementById('result-count');
+  count.textContent = String(matches.length);
 
-function clearResults() {
-  assessments = [];
-  selectedIdx = -1;
-  document.getElementById('cards-list').innerHTML = '';
-  document.getElementById('detail-content').hidden = true;
-  document.querySelector('.detail-empty').style.display = '';
-  document.getElementById('candidate-count').textContent = '0';
-  resetPipeline();
-}
-
-function resetPipeline() {
-  document.querySelectorAll('.pl-node').forEach(el => {
-    el.classList.remove('completed', 'running', 'failed');
-  });
-}
-
-// ═══════════════════════════════════════════════════════════
-// Cards
-// ═══════════════════════════════════════════════════════════
-
-function renderCards() {
-  const list = document.getElementById('cards-list');
-  if (!assessments.length) {
-    list.innerHTML = `<div class="empty-hint"><div class="empty-icon">◈</div><p>No candidates assessed.<br>Check your JD and resume, then try again.</p></div>`;
+  if (!matches.length) {
+    list.innerHTML = '<div class="empty-hint"><div class="empty-icon">◈</div><p>No matches yet. Add JDs and resumes, then click "Match All".</p></div>';
     return;
   }
 
-  list.innerHTML = assessments.map((a, i) => {
-    const score = a.match_degree || 0;
-    const scoreAttr = score >= 8 ? 'data-high' : score >= 6 ? 'data-mid' : 'data-low';
-    const tags = (a.tech_tags || []).slice(0, 6);
-    const conclusion = a.conclusion || '';
-    const name = a.candidate_name || 'Unknown';
+  list.innerHTML = matches.map((m, i) => {
+    const score = m.score;
+    const attr = score >= 8 ? 'data-high' : score >= 6 ? 'data-mid' : 'data-low';
+    const tags = (m.assessment.tech_tags || []).slice(0, 5);
+    const badge = score >= 8 ? '<span class="result-badge strong">Strong</span>'
+                : score >= 6 ? '<span class="result-badge hire">Hire</span>'
+                : '<span class="result-badge review">Review</span>';
 
     return `
-      <div class="candidate-card${i === selectedIdx ? ' selected' : ''}" data-idx="${i}" onclick="selectCard(${i})">
-        <div class="card-name">${esc(name)}</div>
-        <div class="card-score" ${scoreAttr}>${score}/10</div>
-        <div class="card-tags">${tags.map(t => `<span class="card-tag">${esc(t)}</span>`).join('')}</div>
-        <div class="card-conclusion">${esc(conclusion)}</div>
+      <div class="result-card${i === selectedMatch ? ' selected' : ''}" onclick="selectMatch(${i})">
+        <div class="result-pair">
+          <span class="name">${esc(m.candidateName)}</span>
+          <span class="arrow">→</span>
+          <span class="jd-name">${esc(m.jdTitle)}</span>
+        </div>
+        <div class="result-tags">${tags.map(t => `<span class="result-tag">${esc(t)}</span>`).join('')}</div>
+        <div class="result-score" ${attr}>${score}/10</div>
+        ${badge}
       </div>
     `;
   }).join('');
 }
 
-function selectCard(idx) {
-  selectedIdx = idx;
-  renderCards();
-  renderDetail(idx);
+function selectMatch(idx) {
+  selectedMatch = idx;
+  renderResults();
+  showDetail(idx);
 }
 
-// ═══════════════════════════════════════════════════════════
-// Detail Panel
-// ═══════════════════════════════════════════════════════════
+function showDetail(idx) {
+  const m = matches[idx];
+  if (!m) return;
 
-function renderDetail(idx) {
-  const a = assessments[idx];
-  if (!a) return;
-
-  document.querySelector('.detail-empty').style.display = 'none';
+  const panel = document.getElementById('detail-panel');
   const content = document.getElementById('detail-content');
-  content.hidden = false;
+  panel.hidden = false;
 
+  const a = m.assessment;
   const score = a.match_degree || 0;
   const sc = score >= 8 ? 'var(--success)' : score >= 6 ? 'var(--warning)' : 'var(--error)';
   const tags = a.tech_tags || [];
-  const reasons = a.reasons_for_recommendation || [];
   const points = a.main_match_points || [];
   const deductions = a.main_deductions || [];
   const recText = a.recommendation_text || '';
-  const needsHuman = a.requires_human_input;
+  const reasons = a.reasons_for_recommendation || [];
 
   content.innerHTML = `
-    <div class="detail-name">${esc(a.candidate_name || 'Unknown')}</div>
+    <div class="detail-name">${esc(a.candidate_name || m.candidateName)} → ${esc(m.jdTitle)}</div>
     <div class="detail-score-row">
       <div class="detail-score-big" style="color:${sc}">${score}</div>
       <div class="detail-score-label">/ 10 · ${esc(a.conclusion || '')}</div>
+    </div>
+
+    <div class="detail-bidirectional">
+      <div>
+        <div class="detail-bid-label">Company View</div>
+        <div class="detail-bid-score" style="color:${sc}">${(a.hard_match_score || 0).toFixed(1)}/7</div>
+        <div style="font-size:0.6875rem;color:var(--muted)">hard match</div>
+      </div>
+      <div>
+        <div class="detail-bid-label">Candidate Fit</div>
+        <div class="detail-bid-score" style="color:var(--accent)">${(a.hr_bonus_score || 0).toFixed(1)}/3</div>
+        <div style="font-size:0.6875rem;color:var(--muted)">HR bonus</div>
+      </div>
     </div>
 
     ${points.length ? `
@@ -217,6 +329,12 @@ function renderDetail(idx) {
     <div class="detail-section">
       <h3>Deductions</h3>
       <ul class="detail-reasons">${deductions.map(d => `<li style="border-left-color:var(--error)">${esc(d)}</li>`).join('')}</ul>
+    </div>` : ''}
+
+    ${reasons.length ? `
+    <div class="detail-section">
+      <h3>Recommendation Reasons</h3>
+      <ul class="detail-reasons">${reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
     </div>` : ''}
 
     ${tags.length ? `
@@ -237,23 +355,25 @@ function renderDetail(idx) {
       <p style="font-size:0.8125rem">${esc(a.reason_for_leaving)}</p>
     </div>` : ''}
 
-    ${needsHuman ? `
-    <div class="detail-section">
-      <p style="color:var(--warning);font-weight:600;font-size:0.875rem">Match below 7 — manual review needed</p>
-      ${a.missing_fields && a.missing_fields.length ? `<p style="font-size:0.75rem;color:var(--muted)">Missing: ${a.missing_fields.join(', ')}</p>` : ''}
-    </div>` : ''}
-
     ${recText ? `
     <div class="detail-section">
       <h3>Recommendation</h3>
       <div class="detail-rec-text">${esc(recText)}</div>
     </div>` : ''}
 
+    ${a.requires_human_input ? `
+    <div class="detail-section">
+      <p style="color:var(--warning);font-weight:600;font-size:0.875rem">⚠ Match below 7 — manual review needed</p>
+      ${a.missing_fields ? `<p style="font-size:0.75rem;color:var(--muted)">Missing: ${a.missing_fields.join(', ')}</p>` : ''}
+    </div>` : ''}
+
     <div class="detail-actions">
-      ${!needsHuman ? `<button class="action-btn primary-action" onclick="draftOutreach(${idx})">Generate Outreach</button>` : ''}
+      ${!a.requires_human_input ? `<button class="action-btn primary-action" onclick="draftOutreach(${idx})">Generate Outreach</button>` : ''}
       <button class="action-btn" onclick="generateReport(${idx})">Evaluation Report</button>
     </div>
   `;
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -261,30 +381,30 @@ function renderDetail(idx) {
 // ═══════════════════════════════════════════════════════════
 
 async function draftOutreach(idx) {
-  const a = assessments[idx];
-  if (!a) return;
-  const jdText = document.getElementById('jd-input').value.trim();
+  const m = matches[idx];
+  if (!m) return;
+  const jd = jds.find(j => j.id === m.jdId);
+  if (!jd) return;
 
   try {
-    const jobGene = await parseJD(jdText);
-    const res = await API_PAYLOAD('/api/draft-outreach', {
-      job_gene: jobGene,
+    const res = await API('/api/draft-outreach', {
+      job_gene: jd.jobGene,
       candidate_gene: {
-        candidate_id: a.candidate_name || 'c_001',
-        skill_vector: a.tech_tags || [],
+        candidate_id: m.candidateName,
+        skill_vector: m.assessment.tech_tags || [],
         years_of_experience: 0,
-        salary_expectation: a.current_salary || 'unknown',
+        salary_expectation: m.assessment.current_salary || '',
         location_preference: '',
-        recent_projects: a.reasons_for_recommendation || [],
+        recent_projects: [],
         availability: 'open',
-        seniority_level: a.current_level || 'mid',
+        seniority_level: m.assessment.current_level || 'mid',
       },
       match_result: {
-        candidate_id: a.candidate_name || 'c_001',
-        job_id: 'j_001',
-        match_score: (a.match_degree || 0) / 10,
+        candidate_id: m.candidateName,
+        job_id: jd.jobGene?.job_id || 'j_001',
+        match_score: m.score / 10,
         score_detail: {},
-        recommendation_reason: a.conclusion || '',
+        recommendation_reason: m.assessment.conclusion || '',
       },
     });
 
@@ -295,44 +415,28 @@ async function draftOutreach(idx) {
         <div class="detail-rec-text"><b>Subject:</b> ${esc(res.outreach_draft?.subject || '')}\n\n${esc(res.outreach_draft?.message_body || '')}</div>
       </div>
     `);
-  } catch (e) {
-    console.error('Outreach error', e);
-  }
+  } catch (e) { console.error(e); }
 }
 
 async function generateReport(idx) {
-  const a = assessments[idx];
-  if (!a) return;
+  const m = matches[idx];
+  if (!m) return;
 
   try {
-    const res = await API_PAYLOAD('/api/evaluation/generate', {
-      assessment: a,
+    const res = await API('/api/evaluation/generate', {
+      assessment: m.assessment,
       interview_qa: [],
       background_check: {},
-      language: 'zh',
     });
-
-    const rec = res.final_recommendation || '—';
     const panel = document.getElementById('detail-content');
     panel.insertAdjacentHTML('beforeend', `
       <div class="detail-section" style="margin-top:0.5rem">
         <h3>Evaluation Report</h3>
-        <p style="font-size:0.875rem">Recommendation: <strong>${esc(rec)}</strong></p>
+        <p style="font-size:0.875rem">Recommendation: <strong>${esc(res.final_recommendation || '—')}</strong></p>
         <div class="detail-rec-text">${esc(res.resume_summary || '')}</div>
       </div>
     `);
-  } catch (e) {
-    console.error('Report error', e);
-  }
-}
-
-async function parseJD(text) {
-  try {
-    const parsed = await API_PAYLOAD('/api/parse-job', { text });
-    return parsed.job_gene || parsed;
-  } catch {
-    return { job_id: 'j_001', job_title: 'unknown', required_skills: [], preferred_skills: [], min_years_of_experience: 0, salary_range: 'unknown', location: 'unknown', seniority_level: 'unknown' };
-  }
+  } catch (e) { console.error(e); }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -346,13 +450,18 @@ function esc(s) {
   return d.innerHTML;
 }
 
-function updateAvgScore() {
-  if (!assessments.length) {
-    document.getElementById('sb-avg').textContent = 'avg —';
-    return;
-  }
-  const avg = assessments.reduce((s, a) => s + (a.match_degree || 0), 0) / assessments.length;
-  document.getElementById('sb-avg').textContent = `avg ${avg.toFixed(1)}`;
+function updateCounts() {
+  document.getElementById('match-jd-count').textContent = `${jds.length} JD${jds.length !== 1 ? 's' : ''}`;
+  document.getElementById('match-candidate-count').textContent = `${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`;
+  document.getElementById('match-total').textContent = `${jds.length * candidates.length} potential matches`;
+  document.getElementById('sb-jds').textContent = `${jds.length} JD${jds.length !== 1 ? 's' : ''}`;
+  document.getElementById('sb-candidates').textContent = `${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`;
+  updateMatchBar();
+}
+
+function updateMatchBar() {
+  const btn = document.getElementById('match-all-btn');
+  btn.disabled = !(jds.length && candidates.length);
 }
 
 init();
