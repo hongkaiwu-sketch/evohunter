@@ -38,6 +38,7 @@
           <li data-step="candidates"><span>3</span><strong data-i18n="steps.candidates">Genes</strong><small data-i18n="steps.candidates_detail">Parse candidates</small></li>
           <li data-step="score"><span>4</span><strong data-i18n="steps.score">Rank</strong><small data-i18n="steps.score_detail">Score fit</small></li>
           <li data-step="evolve"><span>5</span><strong data-i18n="steps.evolve">Evolve</strong><small data-i18n="steps.evolve_detail">Update weights</small></li>
+          <li data-step="workflow"><span>6</span><strong data-i18n="steps.workflow">Workflow</strong><small data-i18n="steps.workflow_detail">End-to-end pipeline</small></li>
         </ol>
         <section class="overview-panel" aria-label="Run overview">
           <h2 data-i18n="overview.title">Run overview</h2>
@@ -166,6 +167,45 @@
           </div>
           <div class="message" id="outreach-message" role="status"></div>
           <pre class="json-preview" id="outreach-output" tabindex="0">{}</pre>
+        </section>
+
+        <section class="tool-panel" aria-labelledby="workflow-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="workflow-title" data-i18n="panels.workflow_title">Workflow Pipeline</h2>
+              <p data-i18n="panels.workflow_help">Run the end-to-end headhunting pipeline (JD → Assess → Outreach → Report).</p>
+            </div>
+            <button class="primary-button" id="execute-workflow-button" type="button" data-i18n="buttons.execute_workflow">Execute</button>
+          </div>
+          <label for="workflow-inputs" data-i18n="labels.workflow_inputs">Inputs JSON</label>
+          <textarea class="compact" id="workflow-inputs" spellcheck="false">{"resume_text":"Paste resume here","language":"zh"}</textarea>
+          <div class="message" id="workflow-message" role="status"></div>
+          <div class="workflow-nodes" id="workflow-nodes" aria-live="polite"></div>
+          <pre class="json-preview" id="workflow-output" tabindex="0">{}</pre>
+        </section>
+
+        <section class="tool-panel" aria-labelledby="recruiter-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="recruiter-title" data-i18n="panels.recruiter_title">Recruiter Assessment</h2>
+              <p data-i18n="panels.recruiter_help">Tech recruiter match assessment with recommendation text.</p>
+            </div>
+            <button class="primary-button" id="recruiter-assess-button" type="button" disabled data-i18n="buttons.assess">Assess</button>
+          </div>
+          <div class="message" id="recruiter-message" role="status"></div>
+          <div class="assessment-card" id="recruiter-assessment" aria-live="polite"></div>
+        </section>
+
+        <section class="tool-panel" aria-labelledby="evaluation-title">
+          <div class="panel-heading">
+            <div>
+              <h2 id="evaluation-title" data-i18n="panels.evaluation_title">Evaluation Report</h2>
+              <p data-i18n="panels.evaluation_help">Comprehensive hiring evaluation based on resume, interview, and background check.</p>
+            </div>
+            <button class="secondary-button" id="generate-evaluation-button" type="button" disabled data-i18n="buttons.generate_report">Generate Report</button>
+          </div>
+          <div class="message" id="evaluation-message" role="status"></div>
+          <pre class="json-preview" id="evaluation-output" tabindex="0">{}</pre>
         </section>
 
         <section class="tool-panel" aria-labelledby="history-title">

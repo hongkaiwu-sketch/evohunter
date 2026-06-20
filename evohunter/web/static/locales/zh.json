@@ -15,7 +15,9 @@
     "score": "排序",
     "score_detail": "匹配评分",
     "evolve": "进化",
-    "evolve_detail": "更新权重"
+    "evolve_detail": "更新权重",
+    "workflow": "工作流",
+    "workflow_detail": "端到端管线"
   },
   "overview": {
     "title": "运行概览",
@@ -35,6 +37,12 @@
     "evolve_help": "根据回复或面试反馈更新权重。",
     "outreach_title": "触达草稿",
     "outreach_help": "为排名最高的候选人生成待审核的话术草稿。",
+    "workflow_title": "工作流管线",
+    "workflow_help": "运行端到端猎头管线（JD → 评估 → 触达 → 报告）。",
+    "recruiter_title": "猎头评估",
+    "recruiter_help": "技术猎头匹配度评估与推荐词生成。",
+    "evaluation_title": "评估报告",
+    "evaluation_help": "综合简历、面试和背调信息的录用建议。",
     "history_title": "历史分析",
     "history_help": "查看评分趋势、候选人历史和代际变化。"
   },
@@ -44,7 +52,8 @@
     "candidate_text": "候选人文本",
     "weight_config": "权重配置 JSON",
     "feedback_events": "反馈事件 JSON",
-    "sender_id": "节点ID"
+    "sender_id": "节点ID",
+    "workflow_inputs": "输入参数 JSON"
   },
   "placeholders": {
     "sources": "每行一个来源",
@@ -59,7 +68,10 @@
     "draft": "草稿",
     "enhanced_cycle": "5阶段",
     "publish": "发布到Hub",
-    "fetch": "从Hub获取"
+    "fetch": "从Hub获取",
+    "execute_workflow": "执行",
+    "assess": "评估",
+    "generate_report": "生成报告"
   },
   "table": {
     "candidate": "候选人",
@@ -92,6 +104,7 @@
     "drafting": "生成草稿中",
     "publishing": "正在发布",
     "fetching": "正在获取",
+    "executing_workflow": "执行工作流中",
     "source_cleaned": "来源已清洗",
     "sources_cleaned": "已清洗 {success}/{total} 个来源",
     "jd_parsed": "JD 已解析",
@@ -99,6 +112,7 @@
     "results_scored": "已评分 {count} 个结果",
     "weights_evolved": "权重已进化",
     "outreach_generated": "触达草稿已生成",
+    "workflow_executed": "工作流执行完成",
     "published_to_hub": "已发布到EvoMap Hub",
     "publish_failed": "Hub发布失败",
     "fetched_from_hub": "已从Hub获取",

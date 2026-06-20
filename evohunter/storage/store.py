@@ -64,6 +64,52 @@ def initialize_database(db_path: str) -> None:
               payload text not null,
               created_at text not null default current_timestamp
             );
+            create table if not exists rag_company_profiles (
+              company_hash text primary key,
+              payload text not null,
+              created_at text not null default current_timestamp,
+              updated_at text not null default current_timestamp
+            );
+            create table if not exists rag_jd_templates (
+              template_id text primary key,
+              payload text not null,
+              created_at text not null default current_timestamp
+            );
+            create table if not exists rag_culture_tags (
+              tag_id text primary key,
+              name text not null unique,
+              category text not null,
+              description text not null default ''
+            );
+            create table if not exists rag_company_tags (
+              company_hash text not null,
+              tag_id text not null,
+              primary key (company_hash, tag_id)
+            );
+            create table if not exists workflow_executions (
+              id integer primary key autoincrement,
+              workflow_id text not null,
+              status text not null,
+              payload text not null,
+              created_at text not null default current_timestamp
+            );
+            create table if not exists outreach_threads (
+              thread_id text primary key,
+              candidate_id text not null,
+              job_id text not null,
+              status text not null default 'draft',
+              payload text not null,
+              created_at text not null default current_timestamp,
+              updated_at text not null default current_timestamp
+            );
+            create table if not exists evaluation_reports (
+              report_id text primary key,
+              candidate_hash text not null,
+              job_id text not null,
+              final_recommendation text not null,
+              payload text not null,
+              created_at text not null default current_timestamp
+            );
             """
         )
 
@@ -283,6 +329,127 @@ def _record_workflow_step(connection: sqlite3.Connection, step: str) -> None:
 
 def _dump(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+# ── Workflow persistence ─────────────────────────────────────────────
+
+
+def save_workflow_execution(db_path: str, result: dict[str, Any]) -> None:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        conn.execute(
+            """
+            insert into workflow_executions (workflow_id, status, payload)
+            values (?, ?, ?)
+            """,
+            (
+                result.get("workflow_id", "unknown"),
+                result.get("status", "unknown"),
+                _dump(result),
+            ),
+        )
+
+
+def load_workflow_executions(db_path: str, limit: int = 10) -> list[dict[str, Any]]:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute(
+            "select payload from workflow_executions order by id desc limit ?",
+            (limit,),
+        ).fetchall()
+    return [_load(r["payload"]) for r in rows]
+
+
+# ── Outreach thread persistence ───────────────────────────────────────
+
+
+def save_outreach_thread(db_path: str, thread: dict[str, Any]) -> None:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        conn.execute(
+            """
+            insert into outreach_threads (thread_id, candidate_id, job_id, status, payload, updated_at)
+            values (?, ?, ?, ?, ?, current_timestamp)
+            on conflict(thread_id) do update set
+              status = excluded.status,
+              payload = excluded.payload,
+              updated_at = current_timestamp
+            """,
+            (
+                thread.get("thread_id", ""),
+                thread.get("candidate_id", ""),
+                thread.get("job_id", ""),
+                thread.get("status", "draft"),
+                _dump(thread),
+            ),
+        )
+
+
+def load_outreach_thread(db_path: str, thread_id: str) -> dict[str, Any] | None:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            "select payload from outreach_threads where thread_id = ?",
+            (thread_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    return _load(row["payload"])
+
+
+def load_outreach_threads_by_candidate(
+    db_path: str, candidate_id: str
+) -> list[dict[str, Any]]:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        rows = conn.execute(
+            "select payload from outreach_threads where candidate_id = ? order by updated_at desc",
+            (candidate_id,),
+        ).fetchall()
+    return [_load(r["payload"]) for r in rows]
+
+
+# ── Evaluation report persistence ─────────────────────────────────────
+
+
+def save_evaluation_report(db_path: str, report: dict[str, Any]) -> None:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        conn.execute(
+            """
+            insert into evaluation_reports (report_id, candidate_hash, job_id, final_recommendation, payload)
+            values (?, ?, ?, ?, ?)
+            """,
+            (
+                report.get("report_id", ""),
+                report.get("candidate_hash", ""),
+                report.get("job_id", ""),
+                report.get("final_recommendation", "unknown"),
+                _dump(report),
+            ),
+        )
+
+
+def load_evaluation_reports(
+    db_path: str, job_id: str | None = None, candidate_hash: str | None = None
+) -> list[dict[str, Any]]:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        if job_id:
+            rows = conn.execute(
+                "select payload from evaluation_reports where job_id = ? order by created_at desc",
+                (job_id,),
+            ).fetchall()
+        elif candidate_hash:
+            rows = conn.execute(
+                "select payload from evaluation_reports where candidate_hash = ? order by created_at desc",
+                (candidate_hash,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "select payload from evaluation_reports order by created_at desc limit 20"
+            ).fetchall()
+    return [_load(r["payload"]) for r in rows]
 
 
 def _load(payload: str) -> dict[str, Any]:

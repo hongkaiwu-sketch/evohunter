@@ -681,3 +681,124 @@ tr:last-child td {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Workflow nodes ─────────────────────────────────────────────── */
+
+.workflow-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.workflow-nodes:empty {
+  display: none;
+}
+
+.node-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.node-status[data-status="completed"] {
+  background: oklch(0.97 0.018 150);
+  border-color: oklch(0.78 0.08 150);
+}
+
+.node-status[data-status="running"] {
+  background: oklch(0.965 0.022 55);
+  border-color: oklch(0.82 0.06 55);
+}
+
+.node-status[data-status="failed"] {
+  background: oklch(0.97 0.02 28);
+  border-color: oklch(0.76 0.1 28);
+}
+
+.node-status[data-status="skipped"] {
+  background: var(--color-panel);
+  opacity: 0.5;
+}
+
+/* ── Assessment card ────────────────────────────────────────────── */
+
+.assessment-card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.assessment-card:empty {
+  display: none;
+}
+
+.assessment-card .match-degree {
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary);
+}
+
+.assessment-card .match-degree[data-score-low="true"] {
+  color: var(--color-error);
+}
+
+.assessment-card .match-degree[data-score-high="true"] {
+  color: var(--color-success);
+}
+
+.assessment-card .assessment-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.assessment-card .assessment-section h4 {
+  margin: 0 0 var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.assessment-card .rec-text {
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: oklch(0.985 0.002 70);
+  padding: var(--space-3);
+}
+
+.recommendation-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.recommendation-badge.strong_hire {
+  background: oklch(0.92 0.1 150);
+  color: oklch(0.35 0.08 150);
+}
+
+.recommendation-badge.hire {
+  background: oklch(0.92 0.05 100);
+  color: oklch(0.4 0.06 80);
+}
+
+.recommendation-badge.weak_hire {
+  background: oklch(0.92 0.03 60);
+  color: oklch(0.4 0.05 50);
+}
+
+.recommendation-badge.no {
+  background: oklch(0.94 0.03 28);
+  color: oklch(0.4 0.06 28);
+}

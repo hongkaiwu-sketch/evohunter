@@ -56,6 +56,27 @@ def handle_api_request(path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return _evolve(payload)
     if path == "/api/draft-outreach":
         return {"outreach_draft": _draft_outreach(payload)}
+    # ── Workflow endpoints ─────────────────────────────────────────
+    if path == "/api/workflow/execute":
+        return _workflow_execute(payload)
+    if path == "/api/workflow/list":
+        return _workflow_list()
+    # ── Recruiter assessment endpoint ──────────────────────────────
+    if path == "/api/recruiter/assess":
+        return _recruiter_assess(payload)
+    # ── RAG endpoints ──────────────────────────────────────────────
+    if path == "/api/rag/retrieve":
+        return _rag_retrieve(payload)
+    if path == "/api/rag/index-company":
+        return _rag_index_company(payload)
+    # ── MCP endpoints ──────────────────────────────────────────────
+    if path == "/api/mcp/tools":
+        return _mcp_tools()
+    if path == "/api/mcp/execute":
+        return _mcp_execute(payload)
+    # ── Evaluation endpoint ────────────────────────────────────────
+    if path == "/api/evaluation/generate":
+        return _evaluation_generate(payload)
     raise ApiError(f"unknown endpoint: {path}")
 
 
@@ -211,3 +232,198 @@ def _has_api_key() -> bool:
     except Exception:
         return False
     return True
+
+
+# ── Workflow handlers ─────────────────────────────────────────────────
+
+
+def _workflow_execute(payload: dict[str, Any]) -> dict[str, Any]:
+    workflow_id = _optional_string(payload, "workflow_id")
+    if not workflow_id:
+        workflow_id = "full_headhunting"
+
+    from evohunter.workflow import WorkflowContext
+    from evohunter.workflow.prebuilt import (
+        create_assessment_only_workflow,
+        create_full_headhunting_workflow,
+        create_minimal_workflow,
+        run_workflow_with_evolution,
+    )
+
+    if workflow_id == "minimal_headhunting":
+        engine = create_minimal_workflow()
+    elif workflow_id == "assessment_only":
+        engine = create_assessment_only_workflow()
+    else:
+        engine = create_full_headhunting_workflow()
+
+    context = WorkflowContext(
+        workflow_id=workflow_id,
+        input_data=payload.get("inputs", {}),
+    )
+    # Inject JD gene if provided directly (bypasses JD generation node)
+    jd_gene = payload.get("job_gene")
+    if jd_gene:
+        context.set_node_result("jd_generation", {"job_gene": jd_gene})
+
+    db_path = _optional_string(payload, "db_path")
+    weight_config = payload.get("weight_config")
+
+    # Run workflow + evolution bridge
+    result = run_workflow_with_evolution(
+        engine=engine,
+        context=context,
+        weight_config=weight_config,
+        db_path=db_path or None,
+        sender_id=_optional_string(payload, "sender_id") or None,
+        publish_to_hub=payload.get("publish_to_hub", False),
+        fetch_from_hub=payload.get("fetch_from_hub", False),
+    )
+    return result
+
+
+def _workflow_list() -> dict[str, Any]:
+    from evohunter.workflow.prebuilt import (
+        create_assessment_only_workflow,
+        create_full_headhunting_workflow,
+        create_minimal_workflow,
+    )
+    return {
+        "workflows": [
+            {"id": "full_headhunting", "name": "Full Headhunting Pipeline", "nodes": 4},
+            {"id": "minimal_headhunting", "name": "Minimal Pipeline", "nodes": 3},
+            {"id": "assessment_only", "name": "Assessment Only", "nodes": 1},
+        ]
+    }
+
+
+# ── Recruiter assessment handler ─────────────────────────────────────
+
+
+def _recruiter_assess(payload: dict[str, Any]) -> dict[str, Any]:
+    from evohunter.ai import create_evomap_client
+    from evohunter.workflow.nodes.resume_parsing import RecruiterAssessmentNode
+
+    node = RecruiterAssessmentNode(ai_client=create_evomap_client())
+    from evohunter.workflow import WorkflowContext
+
+    context = WorkflowContext(
+        workflow_id="inline_assessment",
+        input_data={
+            "resume_text": _required_string(payload, "resume_text"),
+            "language": payload.get("language", "zh"),
+            "user_notes": payload.get("user_notes", ""),
+        },
+    )
+    # Inject JD result into context for the node to use
+    jd_gene = payload.get("job_gene", {})
+    if jd_gene:
+        context.set_node_result("jd_generation", {"job_gene": jd_gene})
+    else:
+        context.set_node_result("jd_generation", {
+            "job_gene": {
+                "job_id": payload.get("job_id", "j_001"),
+                "job_title": payload.get("job_title", "unknown"),
+                "required_skills": payload.get("required_skills", []),
+                "preferred_skills": payload.get("preferred_skills", []),
+                "min_years_of_experience": payload.get("min_years_of_experience", 0),
+                "salary_range": payload.get("salary_range", "unknown"),
+                "location": payload.get("location", "unknown"),
+                "seniority_level": payload.get("seniority_level", "unknown"),
+            }
+        })
+
+    return node.execute(context)
+
+
+# ── RAG handlers ──────────────────────────────────────────────────────
+
+
+def _rag_retrieve(payload: dict[str, Any]) -> dict[str, Any]:
+    from evohunter.rag import EmbeddingProvider, KnowledgeBaseManager, StructuredKnowledgeStore, VectorStore
+
+    db_path = _required_string(payload, "db_path")
+    embedder = EmbeddingProvider()
+    vector = VectorStore(dimension=embedder.dimension)
+    structured = StructuredKnowledgeStore(db_path)
+
+    kb = KnowledgeBaseManager(vector, structured, embedder)
+    result = kb.retrieve_for_jd_generation(
+        company_name=_optional_string(payload, "company_name"),
+        role_title=_required_string(payload, "role_title"),
+    )
+    return result.to_dict()
+
+
+def _rag_index_company(payload: dict[str, Any]) -> dict[str, Any]:
+    from evohunter.rag import EmbeddingProvider, KnowledgeBaseManager, StructuredKnowledgeStore, VectorStore
+
+    db_path = _required_string(payload, "db_path")
+    embedder = EmbeddingProvider()
+    vector = VectorStore(dimension=embedder.dimension)
+    structured = StructuredKnowledgeStore(db_path)
+
+    kb = KnowledgeBaseManager(vector, structured, embedder)
+    profile = kb.index_company(
+        company_name=_required_string(payload, "company_name"),
+        industry=_optional_string(payload, "industry"),
+        description=_optional_string(payload, "description"),
+        culture_tags=payload.get("culture_tags", []),
+        values=payload.get("values", []),
+        typical_salary_ranges=payload.get("typical_salary_ranges", {}),
+        remote_policy=_optional_string(payload, "remote_policy"),
+        interview_process=_optional_string(payload, "interview_process"),
+    )
+    return profile.to_dict()
+
+
+# ── MCP handlers ──────────────────────────────────────────────────────
+
+
+def _mcp_tools() -> dict[str, Any]:
+    from evohunter.mcp import MCPToolRegistry
+    from evohunter.mcp.tools import register_calendar_tools, register_email_tools, register_im_tools
+
+    registry = MCPToolRegistry()
+    register_email_tools(registry)
+    register_im_tools(registry)
+    register_calendar_tools(registry)
+
+    return {"tools": [t.to_dict() for t in registry.list_tools()]}
+
+
+def _mcp_execute(payload: dict[str, Any]) -> dict[str, Any]:
+    from evohunter.mcp import MCPToolRegistry
+    from evohunter.mcp.models import MCPToolCall
+
+    registry = MCPToolRegistry()
+    result = registry.execute_tool(
+        MCPToolCall(
+            tool_id=_required_string(payload, "tool_id"),
+            parameters=payload.get("parameters", {}),
+        )
+    )
+    return result.to_dict()
+
+
+# ── Evaluation handler ────────────────────────────────────────────────
+
+
+def _evaluation_generate(payload: dict[str, Any]) -> dict[str, Any]:
+    from evohunter.workflow.nodes.evaluation_report import EvaluationReportNode
+    from evohunter.workflow import WorkflowContext
+
+    node = EvaluationReportNode()
+    context = WorkflowContext(
+        workflow_id="inline_evaluation",
+        input_data={
+            "interview_qa": payload.get("interview_qa", []),
+            "background_check": payload.get("background_check", {}),
+            "language": payload.get("language", "zh"),
+        },
+    )
+    context.set_node_result("resume_parsing", payload.get("assessment", {}))
+    context.set_node_result("intelligent_outreach", payload.get("outreach_result", {}))
+    context.set_node_result("jd_generation", payload.get("jd_result", {}))
+
+    return node.execute(context)

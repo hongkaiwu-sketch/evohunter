@@ -15,7 +15,9 @@
     "score": "Rank",
     "score_detail": "Score fit",
     "evolve": "Evolve",
-    "evolve_detail": "Update weights"
+    "evolve_detail": "Update weights",
+    "workflow": "Workflow",
+    "workflow_detail": "End-to-end pipeline"
   },
   "overview": {
     "title": "Run overview",
@@ -35,6 +37,12 @@
     "evolve_help": "Update weights from reply or interview feedback.",
     "outreach_title": "Outreach draft",
     "outreach_help": "Generate a reviewed message draft for the top ranked candidate.",
+    "workflow_title": "Workflow Pipeline",
+    "workflow_help": "Run the end-to-end headhunting pipeline (JD → Assess → Outreach → Report).",
+    "recruiter_title": "Recruiter Assessment",
+    "recruiter_help": "Tech recruiter match assessment with recommendation text.",
+    "evaluation_title": "Evaluation Report",
+    "evaluation_help": "Comprehensive hiring evaluation based on resume, interview, and background check.",
     "history_title": "History analysis",
     "history_help": "Review score trend, candidate history, and generation changes."
   },
@@ -44,7 +52,8 @@
     "candidate_text": "Candidate text",
     "weight_config": "Weight config JSON",
     "feedback_events": "Feedback events JSON",
-    "sender_id": "Node ID"
+    "sender_id": "Node ID",
+    "workflow_inputs": "Inputs JSON"
   },
   "placeholders": {
     "sources": "One source per line",
@@ -59,7 +68,10 @@
     "draft": "Draft",
     "enhanced_cycle": "5-stage",
     "publish": "Publish to Hub",
-    "fetch": "Fetch from Hub"
+    "fetch": "Fetch from Hub",
+    "execute_workflow": "Execute",
+    "assess": "Assess",
+    "generate_report": "Generate Report"
   },
   "table": {
     "candidate": "Candidate",
@@ -92,6 +104,7 @@
     "drafting": "Drafting",
     "publishing": "Publishing",
     "fetching": "Fetching",
+    "executing_workflow": "Executing workflow",
     "source_cleaned": "Source cleaned",
     "sources_cleaned": "{success}/{total} sources cleaned",
     "jd_parsed": "JD parsed",
@@ -99,6 +112,7 @@
     "results_scored": "{count} results scored",
     "weights_evolved": "Weights evolved",
     "outreach_generated": "Outreach draft generated",
+    "workflow_executed": "Workflow executed",
     "published_to_hub": "Published to EvoMap Hub",
     "publish_failed": "Hub publish failed",
     "fetched_from_hub": "Fetched from Hub",

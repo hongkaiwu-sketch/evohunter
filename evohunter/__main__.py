@@ -41,6 +41,14 @@ def main(argv: list[str] | None = None) -> int:
             _run_serve(args)
         elif args.command == "draft-outreach":
             _run_draft_outreach(args)
+        elif args.command == "workflow":
+            _run_workflow(args)
+        elif args.command == "recruiter-assess":
+            _run_recruiter_assess(args)
+        elif args.command == "rag-index":
+            _run_rag_index(args)
+        elif args.command == "evaluate":
+            _run_evaluate(args)
         else:
             parser.print_help(sys.stderr)
             return 1
@@ -101,6 +109,31 @@ def _build_parser() -> argparse.ArgumentParser:
     draft_parser.add_argument("--candidate", required=True)
     draft_parser.add_argument("--match", required=True)
     draft_parser.add_argument("--output", required=True)
+
+    workflow_parser = subparsers.add_parser("workflow")
+    workflow_parser.add_argument("--id", default="full_headhunting")
+    workflow_parser.add_argument("--inputs", required=True)
+    workflow_parser.add_argument("--output", required=True)
+    workflow_parser.add_argument("--db-path")
+
+    recruiter_parser = subparsers.add_parser("recruiter-assess")
+    recruiter_parser.add_argument("--job-gene", required=True)
+    recruiter_parser.add_argument("--resume", required=True)
+    recruiter_parser.add_argument("--language", default="zh")
+    recruiter_parser.add_argument("--output", required=True)
+
+    rag_index_parser = subparsers.add_parser("rag-index")
+    rag_index_parser.add_argument("--company-name", required=True)
+    rag_index_parser.add_argument("--industry", default="tech")
+    rag_index_parser.add_argument("--description", default="")
+    rag_index_parser.add_argument("--db-path", default=".evohunter/rag.db")
+    rag_index_parser.add_argument("--output", required=True)
+
+    evaluate_parser = subparsers.add_parser("evaluate")
+    evaluate_parser.add_argument("--assessment", required=True)
+    evaluate_parser.add_argument("--interview-qa", default="[]")
+    evaluate_parser.add_argument("--background-check", default="{}")
+    evaluate_parser.add_argument("--output", required=True)
 
     return parser
 
@@ -197,6 +230,91 @@ def _run_draft_outreach(args: argparse.Namespace) -> None:
             _read_json(args.match),
         ),
     )
+
+
+def _run_workflow(args: argparse.Namespace) -> None:
+    from evohunter.workflow import WorkflowContext
+    from evohunter.workflow.prebuilt import (
+        create_assessment_only_workflow,
+        create_full_headhunting_workflow,
+        create_minimal_workflow,
+        run_workflow_with_evolution,
+    )
+
+    inputs = _read_json(args.inputs)
+    if args.id == "minimal_headhunting":
+        engine = create_minimal_workflow()
+    elif args.id == "assessment_only":
+        engine = create_assessment_only_workflow()
+    else:
+        engine = create_full_headhunting_workflow()
+
+    context = WorkflowContext(workflow_id=args.id, input_data=inputs)
+    result = run_workflow_with_evolution(
+        engine=engine,
+        context=context,
+        db_path=args.db_path or None,
+    )
+    _write_json(args.output, result)
+
+
+def _run_recruiter_assess(args: argparse.Namespace) -> None:
+    from evohunter.workflow.nodes.resume_parsing import RecruiterAssessmentNode
+    from evohunter.workflow import WorkflowContext
+
+    job_gene = _read_json(args.job_gene)
+    resume_text = _read_text(args.resume)
+
+    node = RecruiterAssessmentNode()
+    context = WorkflowContext(
+        workflow_id="cli_assessment",
+        input_data={
+            "resume_text": resume_text,
+            "language": args.language,
+        },
+    )
+    context.set_node_result("jd_generation", {"job_gene": job_gene})
+    result = node.execute(context)
+    _write_json(args.output, result)
+
+
+def _run_rag_index(args: argparse.Namespace) -> None:
+    from evohunter.rag import EmbeddingProvider, KnowledgeBaseManager, StructuredKnowledgeStore, VectorStore
+
+    embedder = EmbeddingProvider()
+    vector = VectorStore(dimension=embedder.dimension)
+    structured = StructuredKnowledgeStore(args.db_path)
+    kb = KnowledgeBaseManager(vector, structured, embedder)
+
+    profile = kb.index_company(
+        company_name=args.company_name,
+        industry=args.industry,
+        description=args.description,
+    )
+    _write_json(args.output, profile.to_dict())
+
+
+def _run_evaluate(args: argparse.Namespace) -> None:
+    from evohunter.workflow.nodes.evaluation_report import EvaluationReportNode
+    from evohunter.workflow import WorkflowContext
+
+    assessment = _read_json(args.assessment)
+    interview_qa = _read_json(args.interview_qa)
+    background_check = _read_json(args.background_check)
+
+    node = EvaluationReportNode()
+    context = WorkflowContext(
+        workflow_id="cli_evaluation",
+        input_data={
+            "interview_qa": interview_qa if isinstance(interview_qa, list) else [],
+            "background_check": background_check if isinstance(background_check, dict) else {},
+        },
+    )
+    context.set_node_result("resume_parsing", assessment)
+    context.set_node_result("intelligent_outreach", {})
+    context.set_node_result("jd_generation", {})
+    result = node.execute(context)
+    _write_json(args.output, result)
 
 
 def _read_json(path: str) -> Any:
