@@ -1,236 +1,108 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>EvoHunter Workbench</title>
-    <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="/static/styles.css">
-    <script src="/static/app.js" defer></script>
-  </head>
-  <body>
-    <a class="skip-link" href="#main-content" data-i18n="app.skip_link">Skip to main content</a>
-    <header class="app-header">
-      <div>
-        <p class="eyebrow" data-i18n="app.eyebrow">EvoMap GEP Recruiting Agent</p>
-        <h1 data-i18n="app.title">EvoHunter Workbench</h1>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvoHunter</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a href="/" class="logo">Evo<span>Hunter</span></a>
+
+  <div class="pipeline-bar" id="pipeline">
+    <div class="pl-node" data-node="jd">
+      <span class="pl-dot"></span>
+      <strong>JD</strong>
+      <small>Generate</small>
+    </div>
+    <div class="pl-edge"></div>
+    <div class="pl-node" data-node="parse">
+      <span class="pl-dot"></span>
+      <strong>Parse</strong>
+      <small>Assess</small>
+    </div>
+    <div class="pl-edge"></div>
+    <div class="pl-node" data-node="outreach">
+      <span class="pl-dot"></span>
+      <strong>Outreach</strong>
+      <small>Contact</small>
+    </div>
+    <div class="pl-edge"></div>
+    <div class="pl-node" data-node="report">
+      <span class="pl-dot"></span>
+      <strong>Report</strong>
+      <small>Evaluate</small>
+    </div>
+  </div>
+
+  <nav class="topbar-nav">
+    <span class="badge" id="gen-badge">Gen 0</span>
+    <a href="/evolution" class="nav-link">Evolution →</a>
+  </nav>
+</header>
+
+<main class="workbench">
+
+  <!-- Input Row -->
+  <section class="input-row">
+    <div class="input-group">
+      <label for="jd-input">Job Description</label>
+      <textarea id="jd-input" placeholder="Paste a job description or describe the role...&#10;&#10;e.g. AI Agent Engineer, Shanghai, 3+ years Python/LLM, 25k-40k" rows="5"></textarea>
+    </div>
+    <div class="input-group">
+      <label for="resume-input">Resume</label>
+      <textarea id="resume-input" placeholder="Paste candidate resume text...&#10;&#10;e.g. Alice Zhang has 5 years of Python and LLM experience..." rows="5"></textarea>
+    </div>
+    <div class="input-actions">
+      <button id="run-btn" class="run-btn">Run Pipeline</button>
+      <span class="run-hint">or Ctrl+Enter</span>
+    </div>
+  </section>
+
+  <!-- Split: Cards + Detail -->
+  <section class="content-row">
+    <div class="cards-panel" id="cards-panel">
+      <div class="panel-header">
+        <h2>Candidates</h2>
+        <span class="count" id="candidate-count">0</span>
       </div>
-      <div class="header-controls">
-        <label class="language-control" for="language-select">
-          <span data-i18n="app.language_label">Language</span>
-          <select id="language-select" aria-label="Language">
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
-        </label>
-        <div class="status-group" aria-live="polite">
-          <span class="status-dot" id="api-key-dot" aria-hidden="true"></span>
-          <span id="api-key-status" data-i18n="messages.checking_api_key">Checking local API key</span>
+      <div class="cards-list" id="cards-list">
+        <div class="empty-hint">
+          <div class="empty-icon">◈</div>
+          <p>Paste a JD and resume above,<br>then run the pipeline to see results.</p>
         </div>
       </div>
-    </header>
+    </div>
 
-    <main class="app-shell" id="main-content">
-      <aside class="workflow-rail" aria-label="Workflow steps">
-        <ol>
-          <li class="active" data-step="job" aria-current="step"><span>1</span><strong data-i18n="steps.job">JD</strong><small data-i18n="steps.job_detail">Parse role</small></li>
-          <li data-step="source"><span>2</span><strong data-i18n="steps.source">Source</strong><small data-i18n="steps.source_detail">Clean text</small></li>
-          <li data-step="candidates"><span>3</span><strong data-i18n="steps.candidates">Genes</strong><small data-i18n="steps.candidates_detail">Parse candidates</small></li>
-          <li data-step="score"><span>4</span><strong data-i18n="steps.score">Rank</strong><small data-i18n="steps.score_detail">Score fit</small></li>
-          <li data-step="evolve"><span>5</span><strong data-i18n="steps.evolve">Evolve</strong><small data-i18n="steps.evolve_detail">Update weights</small></li>
-          <li data-step="workflow"><span>6</span><strong data-i18n="steps.workflow">Workflow</strong><small data-i18n="steps.workflow_detail">End-to-end pipeline</small></li>
-        </ol>
-        <section class="overview-panel" aria-label="Run overview">
-          <h2 data-i18n="overview.title">Run overview</h2>
-          <dl>
-            <div>
-              <dt data-i18n="overview.candidates">Candidates</dt>
-              <dd id="overview-candidate-count">0</dd>
-            </div>
-            <div>
-              <dt data-i18n="overview.highest_score">Highest score</dt>
-              <dd id="overview-highest-score">0.0000</dd>
-            </div>
-            <div>
-              <dt data-i18n="overview.generation">Generation</dt>
-              <dd id="overview-generation">0</dd>
-            </div>
-            <div>
-              <dt data-i18n="overview.last_step">Last step</dt>
-              <dd id="overview-last-step">none</dd>
-            </div>
-          </dl>
-        </section>
-      </aside>
+    <aside class="detail-panel" id="detail-panel">
+      <div class="detail-empty">
+        <p>Select a candidate<br>to view details</p>
+      </div>
+      <div class="detail-content" id="detail-content" hidden></div>
+    </aside>
+  </section>
 
-      <section class="workspace" aria-label="Inputs and parsing">
-        <section class="tool-panel" aria-labelledby="jd-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="jd-title" data-i18n="panels.jd_title">JD parser</h2>
-              <p data-i18n="panels.jd_help">Convert role text into a validated job gene.</p>
-            </div>
-            <button class="primary-button" id="parse-job-button" type="button" data-i18n="buttons.parse_job">Parse JD</button>
-          </div>
-          <label for="job-text" data-i18n="labels.jd_text">JD text</label>
-          <textarea id="job-text" spellcheck="false">AI Agent Engineer, Shanghai, 3+ years, Python, LLM, Playwright, salary 25k-40k, mid level.</textarea>
-          <div class="message" id="job-message" role="status"></div>
-          <pre class="json-preview" id="job-output" tabindex="0">{}</pre>
-        </section>
+  <!-- Status Bar -->
+  <footer class="status-bar">
+    <span id="sb-generation">Gen 0</span>
+    <span class="sep">·</span>
+    <span id="sb-candidates">0 candidates</span>
+    <span class="sep">·</span>
+    <span id="sb-avg">avg —</span>
+    <span class="sep">·</span>
+    <span id="sb-strategy">balanced</span>
+    <span class="sep">·</span>
+    <span class="status-dot" id="api-dot"></span>
+    <span id="api-status">checking API</span>
+    <span class="sep">·</span>
+    <a href="/evolution" class="status-link">Evolution →</a>
+  </footer>
 
-        <section class="tool-panel" aria-labelledby="candidate-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="candidate-title" data-i18n="panels.candidate_title">Candidate source</h2>
-              <p data-i18n="panels.candidate_help">Clean public URLs or local text/HTML paths, then parse candidate genes.</p>
-            </div>
-            <div class="button-row">
-              <button class="secondary-button" id="scrape-button" type="button" data-i18n="buttons.scrape">Scrape</button>
-              <button class="primary-button" id="parse-candidates-button" type="button" data-i18n="buttons.parse_candidates">Parse candidates</button>
-            </div>
-          </div>
-          <label for="source-input" data-i18n="labels.sources">Source URLs or local paths</label>
-          <input id="source-input" type="text" autocomplete="off" data-i18n-placeholder="placeholders.sources">
-          <label for="candidate-text" data-i18n="labels.candidate_text">Candidate text</label>
-          <textarea id="candidate-text" spellcheck="false">Alice Zhang has 4 years of Python and LLM experience. Recent work includes agent workflow and crawler pipeline. Shanghai preferred, salary 30k-35k, open to opportunities, mid level.</textarea>
-          <div class="message" id="candidate-message" role="status"></div>
-          <pre class="json-preview" id="candidate-output" tabindex="0">[]</pre>
-        </section>
-      </section>
+</main>
 
-      <aside class="inspector" aria-label="Results inspector">
-        <section class="tool-panel" aria-labelledby="rank-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="rank-title" data-i18n="panels.rank_title">Match ranking</h2>
-              <p data-i18n="panels.rank_help">Score candidates with the current GEP weights.</p>
-            </div>
-            <button class="primary-button" id="score-button" type="button" disabled data-i18n="buttons.score">Score</button>
-          </div>
-          <label for="weights-input" data-i18n="labels.weight_config">Weight config JSON</label>
-          <textarea class="compact" id="weights-input" spellcheck="false">{}</textarea>
-          <div class="message" id="score-message" role="status"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th data-i18n="table.candidate">Candidate</th>
-                  <th data-i18n="table.score">Score</th>
-                  <th data-i18n="table.detail">Detail</th>
-                  <th data-i18n="table.reason">Reason</th>
-                </tr>
-              </thead>
-              <tbody id="results-body">
-                <tr><td colspan="4" data-i18n="messages.score_empty">Parse a JD and candidates to enable scoring.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="tool-panel" aria-labelledby="evolve-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="evolve-title" data-i18n="panels.evolve_title">Feedback evolution</h2>
-              <p data-i18n="panels.evolve_help">Update weights from reply or interview feedback.</p>
-            </div>
-            <div class="button-row">
-              <label class="toggle-label">
-                <input type="checkbox" id="enhanced-cycle-toggle">
-                <span data-i18n="buttons.enhanced_cycle">5-stage</span>
-              </label>
-              <button class="secondary-button" id="evolve-button" type="button" disabled data-i18n="buttons.evolve">Evolve</button>
-            </div>
-          </div>
-          <label for="feedback-input" data-i18n="labels.feedback_events">Feedback events JSON</label>
-          <textarea class="compact" id="feedback-input" spellcheck="false">[]</textarea>
-          <div class="message" id="evolve-message" role="status"></div>
-          <div class="summary-grid" id="evolution-summary" aria-live="polite"></div>
-          <pre class="json-preview" id="evolve-output" tabindex="0">{}</pre>
-          <div class="a2a-controls" id="a2a-controls" style="display:none">
-            <label for="sender-id-input" data-i18n="labels.sender_id">Node ID</label>
-            <input id="sender-id-input" type="text" autocomplete="off" data-i18n-placeholder="placeholders.sender_id">
-            <div class="button-row">
-              <button class="secondary-button" id="publish-button" type="button" disabled data-i18n="buttons.publish">Publish to Hub</button>
-              <button class="secondary-button" id="fetch-button" type="button" disabled data-i18n="buttons.fetch">Fetch from Hub</button>
-            </div>
-            <div class="message" id="a2a-status" role="status"></div>
-          </div>
-        </section>
-
-        <section class="tool-panel" aria-labelledby="outreach-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="outreach-title" data-i18n="panels.outreach_title">Outreach draft</h2>
-              <p data-i18n="panels.outreach_help">Generate a reviewed message draft for the top ranked candidate.</p>
-            </div>
-            <button class="secondary-button" id="draft-outreach-button" type="button" disabled data-i18n="buttons.draft">Draft</button>
-          </div>
-          <div class="message" id="outreach-message" role="status"></div>
-          <pre class="json-preview" id="outreach-output" tabindex="0">{}</pre>
-        </section>
-
-        <section class="tool-panel" aria-labelledby="workflow-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="workflow-title" data-i18n="panels.workflow_title">Workflow Pipeline</h2>
-              <p data-i18n="panels.workflow_help">Run the end-to-end headhunting pipeline (JD → Assess → Outreach → Report).</p>
-            </div>
-            <button class="primary-button" id="execute-workflow-button" type="button" data-i18n="buttons.execute_workflow">Execute</button>
-          </div>
-          <label for="workflow-inputs" data-i18n="labels.workflow_inputs">Inputs JSON</label>
-          <textarea class="compact" id="workflow-inputs" spellcheck="false">{"resume_text":"Paste resume here","language":"zh"}</textarea>
-          <div class="message" id="workflow-message" role="status"></div>
-          <div class="workflow-nodes" id="workflow-nodes" aria-live="polite"></div>
-          <pre class="json-preview" id="workflow-output" tabindex="0">{}</pre>
-        </section>
-
-        <section class="tool-panel" aria-labelledby="recruiter-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="recruiter-title" data-i18n="panels.recruiter_title">Recruiter Assessment</h2>
-              <p data-i18n="panels.recruiter_help">Tech recruiter match assessment with recommendation text.</p>
-            </div>
-            <button class="primary-button" id="recruiter-assess-button" type="button" disabled data-i18n="buttons.assess">Assess</button>
-          </div>
-          <div class="message" id="recruiter-message" role="status"></div>
-          <div class="assessment-card" id="recruiter-assessment" aria-live="polite"></div>
-        </section>
-
-        <section class="tool-panel" aria-labelledby="evaluation-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="evaluation-title" data-i18n="panels.evaluation_title">Evaluation Report</h2>
-              <p data-i18n="panels.evaluation_help">Comprehensive hiring evaluation based on resume, interview, and background check.</p>
-            </div>
-            <button class="secondary-button" id="generate-evaluation-button" type="button" disabled data-i18n="buttons.generate_report">Generate Report</button>
-          </div>
-          <div class="message" id="evaluation-message" role="status"></div>
-          <pre class="json-preview" id="evaluation-output" tabindex="0">{}</pre>
-        </section>
-
-        <section class="tool-panel" aria-labelledby="history-title">
-          <div class="panel-heading">
-            <div>
-              <h2 id="history-title" data-i18n="panels.history_title">History analysis</h2>
-              <p data-i18n="panels.history_help">Review score trend, candidate history, and generation changes.</p>
-            </div>
-          </div>
-          <div class="history-stack">
-            <section aria-labelledby="history-trend-title">
-              <h3 id="history-trend-title" data-i18n="history.score_trend">Score trend</h3>
-              <div class="history-list" id="history-trend"></div>
-            </section>
-            <section aria-labelledby="history-candidates-title">
-              <h3 id="history-candidates-title" data-i18n="history.candidates">Candidate history</h3>
-              <div class="history-list" id="history-candidates"></div>
-            </section>
-            <section aria-labelledby="history-generations-title">
-              <h3 id="history-generations-title" data-i18n="history.generations">Generation comparison</h3>
-              <div class="history-list" id="history-generations"></div>
-            </section>
-          </div>
-        </section>
-      </aside>
-    </main>
-  </body>
+<script src="/static/app.js"></script>
+</body>
 </html>

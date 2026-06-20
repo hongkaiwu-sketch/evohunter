@@ -8,26 +8,31 @@ APP_JS = ROOT / "evohunter" / "web" / "static" / "app.js"
 LOCALES_DIR = ROOT / "evohunter" / "web" / "static" / "locales"
 
 
-def test_workbench_has_stateful_workflow_steps():
+def test_workbench_has_pipeline_bar():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    for step_name in ("job", "source", "candidates", "score", "evolve"):
-        assert f'data-step="{step_name}"' in html
+    for node in ("jd", "parse", "outreach", "report"):
+        assert f'data-node="{node}"' in html
+
+    assert 'class="pipeline-bar"' in html
+    assert 'class="pl-node"' in html
 
 
-def test_workbench_disables_downstream_actions_before_inputs_are_ready():
+def test_workbench_has_input_and_run():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'id="score-button" type="button" disabled' in html
-    assert 'id="evolve-button" type="button" disabled' in html
+    assert 'id="jd-input"' in html
+    assert 'id="resume-input"' in html
+    assert 'id="run-btn"' in html
 
 
-def test_workbench_script_syncs_button_and_step_state():
+def test_workbench_script_has_pipeline_flow():
     script = APP_JS.read_text(encoding="utf-8")
 
-    assert "function syncControlState()" in script
-    assert "function setStepState(" in script
-    assert "score_detail" in script
+    assert "function runPipeline()" in script
+    assert "function setPipelineNode(" in script
+    assert "function renderCards()" in script
+    assert "function renderDetail(" in script
 
 
 def test_dashboard_prototype_files_are_not_runtime_entrypoints():
@@ -44,50 +49,36 @@ def test_workbench_static_has_no_external_dashboard_dependency():
     assert "bootstrap" not in combined
     assert "chart.js" not in combined
     assert "flask" not in combined
-    assert "/api/dashboard" not in combined
 
 
-def test_workbench_has_overview_and_outreach_controls():
+def test_workbench_has_cards_and_detail_panel():
     html = INDEX_HTML.read_text(encoding="utf-8")
     script = APP_JS.read_text(encoding="utf-8")
 
-    for element_id in (
-        "overview-candidate-count",
-        "overview-highest-score",
-        "overview-generation",
-        "overview-last-step",
-        "draft-outreach-button",
-        "outreach-output",
-    ):
-        assert f'id="{element_id}"' in html
-    assert "function refreshOverview()" in script
-    assert "function draftOutreach()" in script
+    assert 'id="cards-list"' in html
+    assert 'id="detail-panel"' in html
+    assert 'class="candidate-card' in script
+    assert "function selectCard(" in script
 
 
-def test_workbench_has_history_analysis_controls():
-    html = INDEX_HTML.read_text(encoding="utf-8")
-    script = APP_JS.read_text(encoding="utf-8")
-
-    for element_id in (
-        "evolution-summary",
-        "history-trend",
-        "history-candidates",
-        "history-generations",
-    ):
-        assert f'id="{element_id}"' in html
-    assert "function refreshHistory()" in script
-    assert "function renderHistory(" in script
-    assert "/api/history" in script
-    assert "evolution_summary" in script
-
-
-def test_workbench_has_language_selector_and_i18n_markers():
+def test_workbench_has_status_bar():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'id="language-select"' in html
-    assert 'data-i18n="app.language_label"' in html
-    assert 'data-i18n="panels.jd_title"' in html
-    assert 'data-i18n="buttons.score"' in html
+    for element_id in (
+        "sb-generation",
+        "sb-candidates",
+        "sb-avg",
+        "sb-strategy",
+        "api-dot",
+        "api-status",
+    ):
+        assert f'id="{element_id}"' in html
+
+
+def test_workbench_has_evolution_nav():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'href="/evolution"' in html
 
 
 def test_workbench_locale_files_cover_english_and_chinese():
@@ -104,10 +95,15 @@ def test_workbench_locale_files_cover_english_and_chinese():
     assert zh["buttons"]["score"] == "评分"
 
 
-def test_workbench_script_loads_and_applies_locales():
+def test_workbench_script_api_helpers():
     script = APP_JS.read_text(encoding="utf-8")
 
-    assert "async function loadLocale(" in script
-    assert "function applyLocale()" in script
-    assert "localStorage.setItem(\"evohunter_locale\"" in script
-    assert "/static/locales/" in script
+    assert "function checkApiKey()" in script
+    assert "function updateStatusBar()" in script
+    assert "function draftOutreach(" in script
+    assert "function generateReport(" in script
+    assert "function init()" in script
+    assert "/api/config" in script
+    assert "/api/recruiter/assess" in script
+    assert "/api/evaluation/generate" in script
+    assert "/api/evolution/data" in script
