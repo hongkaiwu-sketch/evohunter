@@ -10,8 +10,16 @@ from evohunter.ai import AIConfigurationError
 from evohunter.core.evaluator import GEPEvaluator
 from evohunter.core.evolution import evolve_weight_config
 from evohunter.core.protocol import ValidationError
-from evohunter.data_scraper import ScrapeError, scrape_source
+from evohunter.data_scraper import ScrapeError, scrape_source, scrape_sources
 from evohunter.llm_parser import LLMParserError, parse_candidate_texts, parse_job_text
+from evohunter.outreach import OutreachDraftError, draft_outreach
+from evohunter.storage import (
+    save_candidate_genes,
+    save_feedback_events,
+    save_job_gene,
+    save_match_results,
+    save_weight_config,
+)
 from evohunter.web import run_server
 
 
@@ -31,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
             _run_parse_candidates(args)
         elif args.command == "serve":
             _run_serve(args)
+        elif args.command == "draft-outreach":
+            _run_draft_outreach(args)
         else:
             parser.print_help(sys.stderr)
             return 1
@@ -43,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     except ValidationError as exc:
         print(f"Validation error: {exc}", file=sys.stderr)
         return 1
-    except (AIConfigurationError, LLMParserError, ScrapeError) as exc:
+    except (AIConfigurationError, LLMParserError, OutreachDraftError, ScrapeError) as exc:
         print(f"Runtime error: {exc}", file=sys.stderr)
         return 1
     return 0
@@ -58,14 +68,16 @@ def _build_parser() -> argparse.ArgumentParser:
     score_parser.add_argument("--candidates", required=True)
     score_parser.add_argument("--weights", required=True)
     score_parser.add_argument("--output", required=True)
+    score_parser.add_argument("--db-path")
 
     evolve_parser = subparsers.add_parser("evolve")
     evolve_parser.add_argument("--weights", required=True)
     evolve_parser.add_argument("--feedback", required=True)
     evolve_parser.add_argument("--output", required=True)
+    evolve_parser.add_argument("--db-path")
 
     scrape_parser = subparsers.add_parser("scrape")
-    scrape_parser.add_argument("--source", required=True)
+    scrape_parser.add_argument("--source", action="append", required=True)
     scrape_parser.add_argument("--output", required=True)
 
     parse_job_parser = subparsers.add_parser("parse-job")
@@ -80,6 +92,12 @@ def _build_parser() -> argparse.ArgumentParser:
     serve_parser.add_argument("--host", default="127.0.0.1")
     serve_parser.add_argument("--port", type=int, default=8000)
 
+    draft_parser = subparsers.add_parser("draft-outreach")
+    draft_parser.add_argument("--job", required=True)
+    draft_parser.add_argument("--candidate", required=True)
+    draft_parser.add_argument("--match", required=True)
+    draft_parser.add_argument("--output", required=True)
+
     return parser
 
 
@@ -89,12 +107,18 @@ def _run_score(args: argparse.Namespace) -> None:
     weight_config = _read_json(args.weights)
     candidate_list = candidates if isinstance(candidates, list) else [candidates]
     results = GEPEvaluator().rank_candidates(job_gene, candidate_list, weight_config)
+    result_payloads = [result.to_dict() for result in results]
     output: dict[str, Any] | list[dict[str, Any]]
     if isinstance(candidates, list):
-        output = [result.to_dict() for result in results]
+        output = result_payloads
     else:
-        output = results[0].to_dict()
+        output = result_payloads[0]
     _write_json(args.output, output)
+    if args.db_path:
+        save_job_gene(args.db_path, job_gene)
+        save_candidate_genes(args.db_path, candidate_list)
+        save_weight_config(args.db_path, weight_config)
+        save_match_results(args.db_path, result_payloads)
 
 
 def _run_evolve(args: argparse.Namespace) -> None:
@@ -102,10 +126,16 @@ def _run_evolve(args: argparse.Namespace) -> None:
     feedback_events = _read_json(args.feedback)
     evolved = evolve_weight_config(weight_config, feedback_events)
     _write_json(args.output, evolved.to_dict())
+    if args.db_path:
+        save_feedback_events(args.db_path, feedback_events)
+        save_weight_config(args.db_path, evolved.to_dict(), step="evolve")
 
 
 def _run_scrape(args: argparse.Namespace) -> None:
-    _write_text(args.output, scrape_source(args.source))
+    if len(args.source) == 1:
+        _write_text(args.output, scrape_source(args.source[0]))
+        return
+    _write_json(args.output, scrape_sources(args.source))
 
 
 def _run_parse_job(args: argparse.Namespace) -> None:
@@ -118,6 +148,17 @@ def _run_parse_candidates(args: argparse.Namespace) -> None:
 
 def _run_serve(args: argparse.Namespace) -> None:
     run_server(host=args.host, port=args.port)
+
+
+def _run_draft_outreach(args: argparse.Namespace) -> None:
+    _write_json(
+        args.output,
+        draft_outreach(
+            _read_json(args.job),
+            _read_json(args.candidate),
+            _read_json(args.match),
+        ),
+    )
 
 
 def _read_json(path: str) -> Any:

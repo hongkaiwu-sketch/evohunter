@@ -10,6 +10,7 @@ from evohunter.ai import AIConfigurationError
 from evohunter.core.protocol import ValidationError
 from evohunter.data_scraper import ScrapeError
 from evohunter.llm_parser import LLMParserError
+from evohunter.outreach import OutreachDraftError
 from evohunter.web.api import ApiError, handle_api_request
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -46,7 +47,14 @@ class WorkbenchRequestHandler(BaseHTTPRequestHandler):
         try:
             payload = self._read_json_body()
             response = handle_api_request(self.path, payload)
-        except (ApiError, AIConfigurationError, LLMParserError, ScrapeError, ValidationError) as exc:
+        except (
+            ApiError,
+            AIConfigurationError,
+            LLMParserError,
+            OutreachDraftError,
+            ScrapeError,
+            ValidationError,
+        ) as exc:
             self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
             return
         except json.JSONDecodeError:
@@ -91,4 +99,6 @@ def _content_type(file_path: Path) -> str:
         return "text/css; charset=utf-8"
     if file_path.suffix == ".js":
         return "text/javascript; charset=utf-8"
+    if file_path.suffix == ".json":
+        return "application/json; charset=utf-8"
     return "application/octet-stream"
