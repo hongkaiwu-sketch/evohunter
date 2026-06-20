@@ -69,8 +69,9 @@ class EvoMapEvolver:
         # Stage 1: Scan
         scan_report = scan_feedback_patterns(events, match_results)
 
-        # Stage 2: Select
+        # Stage 2: Select (with optional strategy override from Evolution Control Center)
         selection = select_target_dimensions(scan_report, current_wc)
+        self._apply_strategy_override(selection)
 
         # Stage 3: Mutate
         candidates = self._stage_mutate(
@@ -253,6 +254,55 @@ class EvoMapEvolver:
 
         result["evolution_event"] = evolution_event
         return result
+
+    # ── Strategy override ───────────────────────────────────────────
+
+    def _apply_strategy_override(self, selection: dict[str, Any]) -> None:
+        """Check storage for user-configured strategy and override selection params.
+
+        Reads the ``evolution_strategy`` table populated by the Evolution
+        Control Center UI. Overrides mutation_rate, mutation_strength,
+        strategy, and filters target_dimensions.
+        """
+        if not self._db_path:
+            return
+        try:
+            from evohunter.storage import load_evolution_strategy
+            override = load_evolution_strategy(self._db_path)
+            if override is None:
+                return
+
+            # Override strategy and mutation params
+            strategy = override.get("strategy")
+            if strategy == "conservative":
+                selection["strategy"] = "conservative"
+                selection["mutation_rate"] = 0.2
+                selection["mutation_strength"] = 0.02
+            elif strategy == "aggressive":
+                selection["strategy"] = "aggressive"
+                selection["mutation_rate"] = 0.6
+                selection["mutation_strength"] = 0.06
+            else:
+                selection["strategy"] = "balanced"
+
+            # Apply explicit overrides if set
+            mr = override.get("mutation_rate")
+            ms = override.get("mutation_strength")
+            if mr is not None and mr > 0:
+                selection["mutation_rate"] = float(mr)
+            if ms is not None and ms > 0:
+                selection["mutation_strength"] = float(ms)
+
+            # Filter target dimensions
+            target_dims = override.get("target_dimensions", [])
+            if target_dims:
+                selection["target_dimensions"] = [
+                    d for d in selection.get("target_dimensions", [])
+                    if d.replace("_weight", "") in target_dims
+                ]
+
+        except Exception:
+            pass  # strategy override is best-effort, never blocks evolution
 
     # ── Internal stage methods ────────────────────────────────────────
 

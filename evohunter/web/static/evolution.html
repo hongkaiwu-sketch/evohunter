@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvoHunter Evolution</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/evolution.css">
+</head>
+<body>
+<header class="evo-header">
+  <div>
+    <p class="eyebrow">EvoMap GEP · Evolution Control Center</p>
+    <h1>Evolution Dashboard</h1>
+  </div>
+  <nav>
+    <a href="/" class="nav-link">Workbench</a>
+    <span class="nav-sep">|</span>
+    <a href="/evolution" class="nav-link active">Evolution</a>
+  </nav>
+</header>
+
+<main class="evo-shell">
+
+  <!-- Top row: Gauge + Overview -->
+  <section class="top-row">
+    <div class="card gauge-card">
+      <h2>Convergence</h2>
+      <canvas id="gauge-canvas" width="220" height="140" aria-label="Convergence gauge"></canvas>
+      <div class="gauge-label" id="gauge-label">no data</div>
+    </div>
+
+    <div class="card overview-card">
+      <h2>Generation Overview</h2>
+      <dl id="overview-grid">
+        <div><dt>Generation</dt><dd id="ov-generation">—</dd></div>
+        <div><dt>Total Events</dt><dd id="ov-events">—</dd></div>
+        <div><dt>Change Magnitude</dt><dd id="ov-magnitude">—</dd></div>
+        <div><dt>Strategy</dt><dd id="ov-strategy">—</dd></div>
+        <div><dt>Convergence</dt><dd id="ov-convergence">—</dd></div>
+        <div><dt>Last Evolved</dt><dd id="ov-time">—</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- Weight Evolution River -->
+  <section class="card river-card">
+    <div class="card-hdr">
+      <h2>Weight Evolution River</h2>
+      <div class="legend" id="river-legend"></div>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="river-canvas" width="900" height="360" aria-label="Weight evolution over generations"></canvas>
+    </div>
+    <div class="river-tooltip" id="river-tooltip" hidden></div>
+  </section>
+
+  <!-- Middle row: Feedback + Strategy -->
+  <section class="mid-row">
+    <div class="card pulse-card">
+      <h2>Feedback Pulse</h2>
+      <div class="canvas-wrap">
+        <canvas id="pulse-canvas" width="380" height="260" aria-label="Feedback event distribution"></canvas>
+      </div>
+    </div>
+
+    <div class="card strategy-card">
+      <h2>Strategy Control</h2>
+      <form id="strategy-form" autocomplete="off">
+        <label>
+          Strategy
+          <select id="strategy-select">
+            <option value="conservative">Conservative</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </label>
+
+        <label>
+          Mutation Rate
+          <span class="range-wrap">
+            <input type="range" id="mutation-rate" min="0.1" max="0.8" step="0.05" value="0.4">
+            <output id="mutation-rate-val">0.40</output>
+          </span>
+        </label>
+
+        <label>
+          Mutation Strength
+          <span class="range-wrap">
+            <input type="range" id="mutation-strength" min="0.01" max="0.10" step="0.01" value="0.04">
+            <output id="mutation-strength-val">0.04</output>
+          </span>
+        </label>
+
+        <fieldset>
+          <legend>Target Dimensions</legend>
+          <div class="checkbox-group">
+            <label class="cb"><input type="checkbox" name="dim" value="skill" checked> skill</label>
+            <label class="cb"><input type="checkbox" name="dim" value="experience" checked> experience</label>
+            <label class="cb"><input type="checkbox" name="dim" value="salary" checked> salary</label>
+            <label class="cb"><input type="checkbox" name="dim" value="location" checked> location</label>
+            <label class="cb"><input type="checkbox" name="dim" value="seniority" checked> seniority</label>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="apply-btn">Apply Strategy</button>
+      </form>
+      <div class="message" id="strategy-message" role="status"></div>
+    </div>
+  </section>
+
+  <!-- Generation Snapshots -->
+  <section class="card snapshots-card">
+    <h2>Generation Snapshots</h2>
+    <div class="snapshot-timeline" id="snapshot-timeline">
+      <p class="empty-state">No evolution data yet. Run a workflow with feedback to see generations.</p>
+    </div>
+  </section>
+
+</main>
+
+<script src="/static/evolution.js"></script>
+</body>
+</html>

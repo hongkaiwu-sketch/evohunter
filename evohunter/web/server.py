@@ -34,6 +34,9 @@ class WorkbenchRequestHandler(BaseHTTPRequestHandler):
         if self.path == "/" or self.path == "/index.html":
             self._send_static_file(STATIC_DIR / "index.html", "text/html; charset=utf-8")
             return
+        if self.path == "/evolution":
+            self._send_static_file(STATIC_DIR / "evolution.html", "text/html; charset=utf-8")
+            return
         if self.path.startswith("/static/"):
             file_path = STATIC_DIR / self.path.removeprefix("/static/")
             self._send_static_file(file_path, _content_type(file_path))

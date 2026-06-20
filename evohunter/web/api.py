@@ -77,6 +77,11 @@ def handle_api_request(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     # ── Evaluation endpoint ────────────────────────────────────────
     if path == "/api/evaluation/generate":
         return _evaluation_generate(payload)
+    # ── Evolution visualization endpoints ──────────────────────────
+    if path == "/api/evolution/data":
+        return _evolution_data(payload)
+    if path == "/api/evolution/strategy":
+        return _evolution_strategy(payload)
     raise ApiError(f"unknown endpoint: {path}")
 
 
@@ -427,3 +432,163 @@ def _evaluation_generate(payload: dict[str, Any]) -> dict[str, Any]:
     context.set_node_result("jd_generation", payload.get("jd_result", {}))
 
     return node.execute(context)
+
+
+# ── Evolution visualization handlers ──────────────────────────────────
+
+
+def _evolution_data(payload: dict[str, Any]) -> dict[str, Any]:
+    db_path = _optional_string(payload, "db_path")
+    if not db_path:
+        return {
+            "generations": [],
+            "feedback_summary": {},
+            "current_strategy": {
+                "strategy": "balanced",
+                "mutation_rate": 0.4,
+                "mutation_strength": 0.04,
+                "target_dimensions": ["skill", "experience", "salary", "location", "seniority"],
+            },
+        }
+
+    from evohunter.storage import (
+        load_evolution_events,
+        load_evolution_strategy,
+        load_workbench_history,
+    )
+
+    # Load generation data
+    history = load_workbench_history(db_path)
+    gen_comparison = history.get("generation_comparison", [])
+    score_trend = history.get("score_trend", [])
+
+    # Load evolution events
+    evolution_events = load_evolution_events(db_path, limit=50)
+
+    # Build generation snapshots
+    generations: list[dict[str, Any]] = []
+    for i, gen in enumerate(gen_comparison):
+        # Find associated evolution events
+        gen_events = [
+            e for e in evolution_events
+            if e.get("cycle_number") == gen.get("generation", i)
+        ]
+        generations.append({
+            "generation": gen.get("generation", i),
+            "weights": {
+                "skill": gen.get("skill_weight", 0.4),
+                "experience": gen.get("experience_weight", 0.2),
+                "salary": gen.get("salary_weight", 0.15),
+                "location": gen.get("location_weight", 0.15),
+                "seniority": gen.get("seniority_weight", 0.1),
+            },
+            "change_magnitude": gen.get("change_magnitude", 0),
+            "convergence": gen.get("convergence_status", "no_feedback"),
+            "strategy": gen.get("strategy", "balanced"),
+            "created_at": gen.get("created_at", ""),
+            "evolution_events": gen_events,
+        })
+
+    # Add score trend data
+    if score_trend and not generations:
+        generations.append({
+            "generation": 0,
+            "weights": {
+                "skill": 0.4,
+                "experience": 0.2,
+                "salary": 0.15,
+                "location": 0.15,
+                "seniority": 0.1,
+            },
+            "change_magnitude": 0,
+            "convergence": "no_feedback",
+            "strategy": "balanced",
+            "created_at": "",
+            "score_trend": score_trend,
+        })
+
+    # Feedback summary from evolution events
+    feedback_summary: dict[str, int] = {}
+    for event in evolution_events:
+        outcome = event.get("outcome", {})
+        perf = outcome.get("performance", {})
+        if isinstance(perf, dict):
+            scan = perf.get("scan_report", {}) if "scan_report" in perf else perf
+        elif isinstance(outcome, dict):
+            scan = outcome
+        else:
+            continue
+        event_counts = scan.get("event_counts", {})
+        for event_type, count in event_counts.items():
+            feedback_summary[event_type] = feedback_summary.get(event_type, 0) + count
+
+    # If no events yet, return empty with initial weights
+    if not generations:
+        generations.append({
+            "generation": 0,
+            "weights": {
+                "skill": 0.4,
+                "experience": 0.2,
+                "salary": 0.15,
+                "location": 0.15,
+                "seniority": 0.1,
+            },
+            "change_magnitude": 0,
+            "convergence": "no_data",
+            "strategy": "balanced",
+            "created_at": "",
+        })
+
+    # Current strategy
+    strategy = load_evolution_strategy(db_path)
+    current_strategy = strategy if strategy else {
+        "strategy": "balanced",
+        "mutation_rate": 0.4,
+        "mutation_strength": 0.04,
+        "target_dimensions": ["skill", "experience", "salary", "location", "seniority"],
+    }
+
+    return {
+        "generations": generations,
+        "feedback_summary": feedback_summary,
+        "current_strategy": current_strategy,
+    }
+
+
+def _evolution_strategy(payload: dict[str, Any]) -> dict[str, Any]:
+    db_path = _optional_string(payload, "db_path")
+
+    # GET: return current strategy
+    if not payload.get("strategy") and not payload.get("mutation_rate"):
+        if not db_path:
+            return {
+                "strategy": "balanced",
+                "mutation_rate": 0.4,
+                "mutation_strength": 0.04,
+                "target_dimensions": ["skill", "experience", "salary", "location", "seniority"],
+            }
+        from evohunter.storage import load_evolution_strategy
+        strategy = load_evolution_strategy(db_path)
+        if strategy is None:
+            return {
+                "strategy": "balanced",
+                "mutation_rate": 0.4,
+                "mutation_strength": 0.04,
+                "target_dimensions": ["skill", "experience", "salary", "location", "seniority"],
+            }
+        return strategy
+
+    # POST: update strategy
+    if not db_path:
+        raise ApiError("db_path is required to save strategy")
+
+    strategy_data = {
+        "strategy": payload.get("strategy", "balanced"),
+        "mutation_rate": float(payload.get("mutation_rate", 0.4)),
+        "mutation_strength": float(payload.get("mutation_strength", 0.04)),
+        "target_dimensions": payload.get("target_dimensions", []),
+    }
+
+    from evohunter.storage import save_evolution_strategy
+    save_evolution_strategy(db_path, strategy_data)
+    return {"saved": True, "strategy": strategy_data}

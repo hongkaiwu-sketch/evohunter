@@ -110,6 +110,14 @@ def initialize_database(db_path: str) -> None:
               payload text not null,
               created_at text not null default current_timestamp
             );
+            create table if not exists evolution_strategy (
+              id integer primary key check (id = 1),
+              strategy text not null default 'balanced',
+              mutation_rate real not null default 0.4,
+              mutation_strength real not null default 0.04,
+              target_dimensions text not null default '["skill","experience","salary","location","seniority"]',
+              updated_at text not null default current_timestamp
+            );
             """
         )
 
@@ -450,6 +458,50 @@ def load_evaluation_reports(
                 "select payload from evaluation_reports order by created_at desc limit 20"
             ).fetchall()
     return [_load(r["payload"]) for r in rows]
+
+
+# ── Evolution strategy persistence ────────────────────────────────────
+
+
+def save_evolution_strategy(db_path: str, strategy: dict[str, Any]) -> None:
+    initialize_database(db_path)
+    target_dims = json.dumps(strategy.get("target_dimensions", []), ensure_ascii=False)
+    with _connect(db_path) as conn:
+        conn.execute(
+            """
+            insert into evolution_strategy (id, strategy, mutation_rate, mutation_strength, target_dimensions, updated_at)
+            values (1, ?, ?, ?, ?, current_timestamp)
+            on conflict(id) do update set
+              strategy = excluded.strategy,
+              mutation_rate = excluded.mutation_rate,
+              mutation_strength = excluded.mutation_strength,
+              target_dimensions = excluded.target_dimensions,
+              updated_at = current_timestamp
+            """,
+            (
+                strategy.get("strategy", "balanced"),
+                float(strategy.get("mutation_rate", 0.4)),
+                float(strategy.get("mutation_strength", 0.04)),
+                target_dims,
+            ),
+        )
+
+
+def load_evolution_strategy(db_path: str) -> dict[str, Any] | None:
+    initialize_database(db_path)
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            "select strategy, mutation_rate, mutation_strength, target_dimensions, updated_at from evolution_strategy where id = 1"
+        ).fetchone()
+    if row is None:
+        return None
+    return {
+        "strategy": row["strategy"],
+        "mutation_rate": float(row["mutation_rate"]),
+        "mutation_strength": float(row["mutation_strength"]),
+        "target_dimensions": json.loads(row["target_dimensions"]),
+        "updated_at": row["updated_at"],
+    }
 
 
 def _load(payload: str) -> dict[str, Any]:
