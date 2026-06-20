@@ -4,7 +4,13 @@ const state = {
   candidateGenes: [],
   weightConfig: {},
   matchResults: [],
-  outreachDraft: null
+  outreachDraft: null,
+  evolutionSummary: null,
+  history: {
+    score_trend: [],
+    candidate_history: {},
+    generation_comparison: []
+  }
 };
 
 const localeState = {
@@ -28,10 +34,14 @@ const elements = {
   scoreMessage: document.querySelector("#score-message"),
   resultsBody: document.querySelector("#results-body"),
   feedbackInput: document.querySelector("#feedback-input"),
+  evolutionSummary: document.querySelector("#evolution-summary"),
   evolveOutput: document.querySelector("#evolve-output"),
   evolveMessage: document.querySelector("#evolve-message"),
   outreachOutput: document.querySelector("#outreach-output"),
   outreachMessage: document.querySelector("#outreach-message"),
+  historyTrend: document.querySelector("#history-trend"),
+  historyCandidates: document.querySelector("#history-candidates"),
+  historyGenerations: document.querySelector("#history-generations"),
   overviewCandidateCount: document.querySelector("#overview-candidate-count"),
   overviewHighestScore: document.querySelector("#overview-highest-score"),
   overviewGeneration: document.querySelector("#overview-generation"),
@@ -63,6 +73,7 @@ async function start() {
   bindEvents();
   checkConfig();
   refreshOverview();
+  refreshHistory();
   syncControlState();
 }
 
@@ -119,6 +130,8 @@ function applyLocale() {
   }
   refreshButtonLabels();
   renderResults(state.matchResults);
+  renderEvolutionSummary(state.evolutionSummary);
+  renderHistory(state.history);
 }
 
 function refreshButtonLabels() {
@@ -220,6 +233,7 @@ async function scoreCandidates() {
     renderResults(state.matchResults);
     completeStep("score", "evolve");
     await refreshOverview();
+    await refreshHistory();
     return t("messages.results_scored", { count: state.matchResults.length });
   }, { button: elements.scoreButton, busyLabel: t("messages.scoring") });
 }
@@ -235,10 +249,13 @@ async function evolveWeights() {
       feedback_events: feedbackEvents
     });
     state.weightConfig = output.weight_config;
+    state.evolutionSummary = output.evolution_summary;
     elements.weightsInput.value = JSON.stringify(state.weightConfig, null, 2);
     renderJson(elements.evolveOutput, state.weightConfig);
+    renderEvolutionSummary(state.evolutionSummary);
     completeStep("evolve");
     await refreshOverview();
+    await refreshHistory();
     return t("messages.weights_evolved");
   }, { button: elements.evolveButton, busyLabel: t("messages.evolving") });
 }
@@ -271,6 +288,20 @@ async function refreshOverview() {
       current_generation: 0,
       last_step: "unavailable"
     });
+  }
+}
+
+async function refreshHistory() {
+  try {
+    state.history = await apiPost("/api/history", { db_path: state.dbPath });
+    renderHistory(state.history);
+  } catch (error) {
+    state.history = {
+      score_trend: [],
+      candidate_history: {},
+      generation_comparison: []
+    };
+    renderHistory(state.history);
   }
 }
 
@@ -322,6 +353,109 @@ function renderOverview(overview) {
   elements.overviewHighestScore.textContent = Number(overview.highest_match_score || 0).toFixed(4);
   elements.overviewGeneration.textContent = String(overview.current_generation || 0);
   elements.overviewLastStep.textContent = overview.last_step || "none";
+}
+
+function renderEvolutionSummary(summary) {
+  elements.evolutionSummary.replaceChildren();
+  if (!summary) {
+    return;
+  }
+  const items = [
+    [t("history.total_events"), summary.total_events],
+    [t("history.change_magnitude"), Number(summary.change_magnitude || 0).toFixed(4)],
+    [t("history.convergence"), summary.convergence_status || "unknown"]
+  ];
+  elements.evolutionSummary.append(
+    ...items.map(([label, value]) => {
+      const item = document.createElement("div");
+      const term = document.createElement("span");
+      const detail = document.createElement("strong");
+      term.textContent = label;
+      detail.textContent = String(value);
+      item.append(term, detail);
+      return item;
+    })
+  );
+}
+
+function renderHistory(history) {
+  renderScoreTrend(history.score_trend || []);
+  renderCandidateHistory(history.candidate_history || {});
+  renderGenerationComparison(history.generation_comparison || []);
+}
+
+function renderScoreTrend(scoreTrend) {
+  elements.historyTrend.replaceChildren();
+  if (!scoreTrend.length) {
+    elements.historyTrend.textContent = t("messages.history_empty");
+    return;
+  }
+  elements.historyTrend.append(
+    ...scoreTrend.slice(-8).map((item) => historyBarRow(
+      item.candidate_id,
+      Number(item.match_score || 0),
+      item.created_at || ""
+    ))
+  );
+}
+
+function renderCandidateHistory(candidateHistory) {
+  elements.historyCandidates.replaceChildren();
+  const entries = Object.entries(candidateHistory);
+  if (!entries.length) {
+    elements.historyCandidates.textContent = t("messages.history_empty");
+    return;
+  }
+  elements.historyCandidates.append(
+    ...entries.slice(-6).map(([candidateId, items]) => {
+      const latest = items[items.length - 1] || {};
+      return compactHistoryRow(
+        candidateId,
+        `${Number(latest.match_score || 0).toFixed(4)} · ${items.length}`
+      );
+    })
+  );
+}
+
+function renderGenerationComparison(generations) {
+  elements.historyGenerations.replaceChildren();
+  if (!generations.length) {
+    elements.historyGenerations.textContent = t("messages.history_empty");
+    return;
+  }
+  elements.historyGenerations.append(
+    ...generations.slice(-6).map((item) => compactHistoryRow(
+      `g${item.generation}`,
+      `skill ${Number(item.skill_weight || 0).toFixed(2)} · exp ${Number(item.experience_weight || 0).toFixed(2)}`
+    ))
+  );
+}
+
+function historyBarRow(label, score, meta) {
+  const row = document.createElement("div");
+  row.className = "history-row";
+  const text = document.createElement("span");
+  const bar = document.createElement("span");
+  const fill = document.createElement("span");
+  const value = document.createElement("strong");
+  text.textContent = label;
+  bar.className = "history-bar";
+  fill.style.width = `${Math.max(0, Math.min(score, 1)) * 100}%`;
+  bar.append(fill);
+  value.textContent = `${score.toFixed(4)} ${meta}`.trim();
+  row.append(text, bar, value);
+  return row;
+}
+
+function compactHistoryRow(label, value) {
+  const row = document.createElement("div");
+  row.className = "compact-history-row";
+  const name = document.createElement("span");
+  const detail = document.createElement("strong");
+  name.textContent = label;
+  detail.textContent = value;
+  row.append(name, detail);
+  return row;
 }
 
 function renderResults(results) {

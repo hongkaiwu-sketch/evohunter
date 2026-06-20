@@ -284,6 +284,8 @@ class MatchResult:
     match_score: float
     score_detail: dict[str, float]
     recommendation_reason: str
+    confidence_score: float = 1.0
+    risk_flags: list[str] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MatchResult":
@@ -291,12 +293,20 @@ class MatchResult:
         score_detail = _require_field(data, "score_detail")
         if not isinstance(score_detail, dict):
             raise ValidationError("score_detail must be a dict")
+        risk_flags = data.get("risk_flags", [])
+        if not isinstance(risk_flags, list):
+            raise ValidationError("risk_flags must be a list")
+        for risk_flag in risk_flags:
+            if not isinstance(risk_flag, str):
+                raise ValidationError("risk_flags items must be strings")
         return cls(
             candidate_id=_require_string(data, "candidate_id"),
             job_id=_require_string(data, "job_id"),
             match_score=_number(data, "match_score"),
             score_detail={key: float(value) for key, value in score_detail.items()},
             recommendation_reason=_require_string(data, "recommendation_reason"),
+            confidence_score=_number(data, "confidence_score", 1.0),
+            risk_flags=[risk_flag for risk_flag in risk_flags if risk_flag.strip()],
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -309,6 +319,8 @@ class MatchResult:
                 for field_name, value in self.score_detail.items()
             },
             "recommendation_reason": self.recommendation_reason,
+            "confidence_score": round(self.confidence_score, 4),
+            "risk_flags": list(self.risk_flags or []),
         }
 
 

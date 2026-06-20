@@ -56,6 +56,8 @@ class GEPEvaluator:
             match_score=match_score,
             score_detail=score_detail,
             recommendation_reason=self.explain_match(job_gene, candidate_gene, score_detail),
+            confidence_score=self._estimate_confidence(job_gene, candidate_gene),
+            risk_flags=self._build_risk_flags(job_gene, candidate_gene, score_detail),
         )
 
     def rank_candidates(
@@ -133,6 +135,49 @@ class GEPEvaluator:
         if distance == 1:
             return 0.7
         return 0.3
+
+    def _estimate_confidence(self, job_gene: JobGene, candidate_gene: CandidateGene) -> float:
+        values = [
+            1.0 if job_gene.required_skills and candidate_gene.skill_vector else 0.5,
+            1.0 if candidate_gene.years_of_experience >= 0 else 0.5,
+            1.0
+            if self._parse_salary_range(job_gene.salary_range)
+            and self._parse_salary_range(candidate_gene.salary_expectation)
+            else 0.4,
+            1.0 if job_gene.location and candidate_gene.location_preference else 0.5,
+            1.0
+            if job_gene.seniority_level in SENIORITY_ORDER
+            and candidate_gene.seniority_level in SENIORITY_ORDER
+            else 0.75,
+        ]
+        return sum(values) / len(values)
+
+    def _build_risk_flags(
+        self,
+        job_gene: JobGene,
+        candidate_gene: CandidateGene,
+        score_detail: dict[str, float],
+    ) -> list[str]:
+        risk_flags = []
+        if score_detail["skill_score"] < 0.5:
+            risk_flags.append("skill_gap")
+        if score_detail["experience_score"] < 0.7:
+            risk_flags.append("experience_gap")
+        if self._parse_salary_range(job_gene.salary_range) is None or self._parse_salary_range(
+            candidate_gene.salary_expectation
+        ) is None:
+            risk_flags.append("salary_unknown")
+        elif score_detail["salary_score"] == 0:
+            risk_flags.append("salary_mismatch")
+        if score_detail["location_score"] == 0:
+            risk_flags.append("location_mismatch")
+        elif score_detail["location_score"] == 0.5:
+            risk_flags.append("location_unknown")
+        if score_detail["seniority_score"] < 0.5:
+            risk_flags.append("seniority_gap")
+        elif score_detail["seniority_score"] == 0.5:
+            risk_flags.append("seniority_unknown")
+        return risk_flags
 
     def _overlap_score(self, expected_skills: list[str], candidate_skills: set[str]) -> float:
         if not expected_skills:

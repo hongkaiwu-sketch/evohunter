@@ -106,3 +106,22 @@ def test_explanation_mentions_main_match_and_gap_points():
     assert "薪资" in result.recommendation_reason
     assert "地点" in result.recommendation_reason
     assert "职级" in result.recommendation_reason
+
+
+def test_score_candidate_reports_confidence_and_risk_flags():
+    evaluator = GEPEvaluator()
+    result = evaluator.score_candidate(
+        make_job_gene(),
+        make_candidate_gene("c_005", ["python"], 1, "unknown", "beijing", "lead"),
+        make_weight_config(),
+    )
+    payload = result.to_dict()
+
+    assert payload["confidence_score"] < 0.9
+    assert payload["risk_flags"] == [
+        "skill_gap",
+        "experience_gap",
+        "salary_unknown",
+        "location_mismatch",
+        "seniority_gap",
+    ]

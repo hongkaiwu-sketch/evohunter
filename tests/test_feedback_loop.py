@@ -2,6 +2,7 @@ import pytest
 
 from evohunter.core.evolution import (
     crossover_weight_configs,
+    evolve_weight_config_with_summary,
     evolve_weight_config,
     mutate_weight_config,
     record_feedback,
@@ -102,3 +103,25 @@ def test_record_feedback_returns_validated_feedback_event():
     )
 
     assert feedback_event.event_type == "interview_failed"
+
+
+def test_evolve_weight_config_with_summary_reports_event_counts_and_convergence():
+    weight_config = WeightConfig.from_dict({})
+    output = evolve_weight_config_with_summary(
+        weight_config,
+        [
+            {"candidate_id": "c_001", "job_id": "j_001", "event_type": "salary_mismatch"},
+            {"candidate_id": "c_002", "job_id": "j_001", "event_type": "salary_mismatch"},
+            {"candidate_id": "c_003", "job_id": "j_001", "event_type": "location_mismatch"},
+        ],
+    )
+
+    assert output["weight_config"]["generation"] == 1
+    assert output["evolution_summary"]["total_events"] == 3
+    assert output["evolution_summary"]["event_counts"] == {
+        "salary_mismatch": 2,
+        "location_mismatch": 1,
+    }
+    assert output["evolution_summary"]["weight_changes"]["salary_weight"] > 0
+    assert output["evolution_summary"]["change_magnitude"] > 0
+    assert output["evolution_summary"]["convergence_status"] == "adjusting"
